@@ -11,7 +11,7 @@ build:
 	@mkdir -p bin/
 	go build -o bin/$(NAME)
 
-test: deps
+test:
 	go test
 
 xcompile: deps test
