@@ -2,8 +2,10 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -19,35 +21,69 @@ const Name = "pacproxy"
 const Version = "0.1.0"
 
 var (
-	pac               gopac.Parser
-	pacRecordSplit    *regexp.Regexp
-	pacItemSplit      *regexp.Regexp
-	errClientRedirect error
+	fPac           string
+	fListen        string
+	fVerbose       bool
+	pac            gopac.Parser
+	pacRecordSplit *regexp.Regexp
+	pacItemSplit   *regexp.Regexp
 )
 
 func init() {
 	pacRecordSplit = regexp.MustCompile(`\s*;\s*`)
 	pacItemSplit = regexp.MustCompile(`\s+`)
-	errClientRedirect = errors.New("Don't follow redirects.")
+	flag.StringVar(&fPac, "c", "proxy.pac", "PAC file to use")
+	flag.StringVar(&fListen, "l", "127.0.0.1:12345", "Interface and port to listen on")
+	flag.BoolVar(&fVerbose, "v", false, "send verbose output to STDERR")
 }
 
 func main() {
-	log := log.New(os.Stderr, "", log.LstdFlags)
+	flag.Parse()
+	logWriter := ioutil.Discard
+	if fVerbose {
+		logWriter = os.Stderr
+	}
+	log.SetOutput(logWriter)
+	log.SetPrefix("")
+	log.SetFlags(log.Ldate | log.Lmicroseconds)
+	log := log.New(logWriter, "", log.Flags())
 	pacLookup := &pacLookup{
 		pac: &gopac.Parser{},
 		log: log,
 	}
-	err := pacLookup.pac.Parse("proxy.pac")
+	err := pacLookup.pac.Parse(fPac)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			DisableKeepAlives:  true,
+			DisableCompression: true,
+			Proxy: func(r *http.Request) (*url.URL, error) {
+				p, err := pacLookup.fetchOne(r.URL)
+				if err != nil {
+					log.Printf("Failed to get proxy configuration from pac: %s", err)
+					return nil, err
+				}
+				if p != nil {
+					log.Printf("Using proxy %v", p)
+				} else {
+					log.Printf("Going direct")
+				}
+				return p, err
+			},
+		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return errors.New("Don't follow redirects")
+		},
+	}
 	handler := &httpHandler{
+		client:    httpClient,
 		pacLookup: pacLookup,
 		log:       log,
 	}
-	log.Fatal(http.ListenAndServe("127.0.0.1:12345", handler))
-
+	log.Printf("Listening on %q", fListen)
+	log.Fatal(http.ListenAndServe(fListen, handler))
 }
 
 type pacLookup struct {
@@ -70,7 +106,11 @@ func (l *pacLookup) fetch(u *url.URL) ([]*url.URL, error) {
 		proxyURL  *url.URL
 	)
 	r := make([]*url.URL, 0, 10)
-	pacResult, err = l.pac.FindProxy(u.String(), u.Host)
+	if o := strings.Index(u.Host, ":"); o >= 0 {
+		pacResult, err = l.pac.FindProxy(u.String(), u.Host[:o])
+	} else {
+		pacResult, err = l.pac.FindProxy(u.String(), u.Host)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -85,6 +125,10 @@ func (l *pacLookup) fetch(u *url.URL) ([]*url.URL, error) {
 				return nil, err
 			}
 			r = append(r, proxyURL)
+		case "SOCKS":
+			return nil, errors.New("SOCKS is not supported")
+		default:
+			return nil, fmt.Errorf("Unknown PAC command %q", p[0])
 		}
 	}
 	if len(r) == 0 {
@@ -93,14 +137,27 @@ func (l *pacLookup) fetch(u *url.URL) ([]*url.URL, error) {
 	return r, nil
 }
 
+func (l *pacLookup) fetchOne(u *url.URL) (*url.URL, error) {
+	results, err := l.fetch(u)
+	if err != nil {
+		return nil, err
+	}
+	for _, proxyURL := range results {
+		// TODO: failover proxy support.
+		return proxyURL, nil
+	}
+	return nil, nil
+}
+
 type httpHandler struct {
+	client    *http.Client
 	log       *log.Logger
 	pacLookup *pacLookup
 }
 
 func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.log.Printf("Got request %s %s", r.Method, r.URL)
-	if r.Method == "CONNECT" {
+	if strings.ToUpper(r.Method) == "CONNECT" {
 		h.doConnect(w, r)
 		return
 	}
@@ -111,32 +168,6 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.doProxy(w, r)
 }
 
-func (h *httpHandler) client() *http.Client {
-	return &http.Client{
-		Transport: &http.Transport{
-			DisableKeepAlives:  true,
-			DisableCompression: true,
-			Proxy: func(r *http.Request) (*url.URL, error) {
-				pacResults, err := h.pacLookup.fetch(r.URL)
-				if err != nil {
-					h.log.Printf("Failed to get proxy configuration from pac: %s", err)
-					return nil, err
-				}
-				for _, proxyURL := range pacResults {
-					// TODO: failover proxy support.
-					h.log.Printf("Using proxy %v", proxyURL)
-					return proxyURL, nil
-				}
-				h.log.Print("Direct connection")
-				return nil, nil
-			},
-		},
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return errClientRedirect
-		},
-	}
-}
-
 func (h *httpHandler) doConnect(w http.ResponseWriter, r *http.Request) {
 	var (
 		clientConn net.Conn
@@ -144,7 +175,6 @@ func (h *httpHandler) doConnect(w http.ResponseWriter, r *http.Request) {
 		err        error
 		proxyURL   *url.URL
 	)
-
 	hj, ok := w.(http.Hijacker)
 	if !ok {
 		h.log.Print("Unable to hijack connection")
@@ -157,17 +187,12 @@ func (h *httpHandler) doConnect(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
-
 	removeProxyHeaders(r)
-	pacResults, err := h.pacLookup.fetch(r.URL)
+	proxyURL, err = h.pacLookup.fetchOne(r.URL)
 	if err != nil {
 		h.log.Printf("Failed to get proxy configuration from pac: %s", err)
 		http.Error(w, "", http.StatusInternalServerError)
 		return
-	}
-	for _, proxyURL = range pacResults {
-		// TODO: failover proxy support.
-		break
 	}
 	if proxyURL != nil {
 		h.log.Printf("Using proxy connect %v", proxyURL)
@@ -200,8 +225,7 @@ func (h *httpHandler) doConnect(w http.ResponseWriter, r *http.Request) {
 
 func (h *httpHandler) doProxy(w http.ResponseWriter, r *http.Request) {
 	removeProxyHeaders(r)
-	client := h.client()
-	resp, err := client.Do(r)
+	resp, err := h.client.Do(r)
 	if err != nil {
 		if resp == nil {
 			h.log.Printf("Client do err: %s", err)
