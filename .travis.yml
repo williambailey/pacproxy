@@ -3,4 +3,4 @@ go:
  - tip
 script:
   - make test build
-  - ./bin/pacproxy -h
+  - ./bin/pacproxy -h || true
