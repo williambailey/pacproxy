@@ -1,0 +1,14 @@
+{
+	"ImportPath": "github.com/williambailey/pacproxy",
+	"GoVersion": "go1.4",
+	"Deps": [
+		{
+			"ImportPath": "github.com/jackwakefield/gopac",
+			"Rev": "235b1c8762802679457b5bb17a5957e4d294fcfe"
+		},
+		{
+			"ImportPath": "github.com/robertkrimen/otto",
+			"Rev": "d1b4d8ef0e0e4b088c8328c95ca63ab9ebd8fc9d"
+		}
+	]
+}
