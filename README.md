@@ -22,7 +22,6 @@ curl -I "http://www.example.com"
 
 ### TODO
 
-- [ ] PAC - Multi-value FindProxyForURL() support
 - [ ] PAC - SOCKS support
 - [ ] SIGHUP to reload PAC file
 - [ ] Pac lookup via cli

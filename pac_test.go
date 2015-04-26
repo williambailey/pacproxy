@@ -19,7 +19,7 @@ func TestPacLoadStringReturnErrorWhenGivenInvalidJavascript(t *testing.T) {
 	require.Error(t, p.Load(pacDefaultJavascript+"={;}"))
 }
 
-func TestPacFindProxyForURLRevertsToDefaultWhenNothingHasBeenLoaded(t *testing.T) {
+func TestPacCallFindProxyForURLRevertsToDefaultWhenNothingHasBeenLoaded(t *testing.T) {
 	p, e := NewPac()
 	require.NoError(t, e)
 	s, e := p.CallFindProxyForURL("http://example.com/foo", "example.com")
@@ -27,7 +27,7 @@ func TestPacFindProxyForURLRevertsToDefaultWhenNothingHasBeenLoaded(t *testing.T
 	require.Equal(t, "DIRECT", s)
 }
 
-func TestPacFindProxyWithLoadedPacAndThenUnloadAndTryAgain(t *testing.T) {
+func TestPacCallFindProxyWithLoadedPacAndThenUnloadAndTryAgain(t *testing.T) {
 	p, e := NewPac()
 	require.NoError(t, e)
 	require.NoError(t, p.Load(`
@@ -44,33 +44,48 @@ function FindProxyForURL(url, host)
 	require.Equal(t, "DIRECT", s)
 }
 
-func TestPacFindProxyReturnsNilURLAndNoErrorWhenPassedNilURL(t *testing.T) {
+func TestPacProxyReturnsNilURLAndNoErrorWhenPassedNilURL(t *testing.T) {
 	p, e := NewPac()
 	require.NoError(t, e)
-	u, e := p.FindProxy(nil)
+	u, e := p.Proxy(nil)
 	require.NoError(t, e)
 	require.Nil(t, u)
 }
 
-func TestPacFindProxyReturnsNilURLAndNoErrorForDirectResult(t *testing.T) {
+func TestPacProxyReturnsNilURLAndNoErrorForDirectResult(t *testing.T) {
 	p, e := NewPac()
 	require.NoError(t, e)
-	u, e := p.FindProxy(&url.URL{})
+	u, e := p.Proxy(&url.URL{})
 	require.NoError(t, e)
 	require.Nil(t, u)
 }
 
-func TestPacFindProxyReturnsURLAndNoErrorForProxyResult(t *testing.T) {
+func TestPacProxyReturnsNilURLAndErrorForProxyResultWhenConnectionFails(t *testing.T) {
 	p, e := NewPac()
 	require.NoError(t, e)
 	require.NoError(t, p.Load(`
 function FindProxyForURL(url, host)
 {
-	return "PROXY example.com";
+	return "PROXY 127.0.0.1:9";
 }`))
-	in, _ := url.Parse("http://example.com")
-	out, e := p.FindProxy(in)
+	in, _ := url.Parse("http://example.com:82/foo")
+	out, e := p.Proxy(in)
+	require.Error(t, e)
+	require.Nil(t, out)
+	require.Contains(t, e.Error(), "Unable to process FindProxyForURL(\"http://example.com:82/foo\", \"example.com\") result \"PROXY 127.0.0.1:9\".\nConnection to \"127.0.0.1:9\" is currently blacklisted for 4m59.")
+	require.Contains(t, e.Error(), "s: dial tcp 127.0.0.1:9: connection refused.")
+}
+
+func TestPacProxyReturnsNilURLAndNilErrorForProxyResultWhenConnectionFailsButWeHaveDirectFallback(t *testing.T) {
+	p, e := NewPac()
 	require.NoError(t, e)
-	require.NotNil(t, out)
-	require.Equal(t, "myproxy.com:8080", out.String())
+	require.NoError(t, p.Load(`
+function FindProxyForURL(url, host)
+{
+	return "PROXY 127.0.0.1:9; DIRECT";
+}`))
+	in, _ := url.Parse("http://example.com:82/foo")
+	out, e := p.Proxy(in)
+	require.NoError(t, e)
+	require.Nil(t, out)
 }
