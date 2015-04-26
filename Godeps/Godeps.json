@@ -3,12 +3,16 @@
 	"GoVersion": "go1.4",
 	"Deps": [
 		{
-			"ImportPath": "github.com/jackwakefield/gopac",
-			"Rev": "235b1c8762802679457b5bb17a5957e4d294fcfe"
-		},
-		{
 			"ImportPath": "github.com/robertkrimen/otto",
 			"Rev": "d1b4d8ef0e0e4b088c8328c95ca63ab9ebd8fc9d"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/assert",
+			"Rev": "3b361f7ebbeff8f74ac0af5b9751f01b32cd74e5"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/require",
+			"Rev": "3b361f7ebbeff8f74ac0af5b9751f01b32cd74e5"
 		}
 	]
 }
