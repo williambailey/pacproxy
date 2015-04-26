@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -19,12 +21,6 @@ const pacDefaultJavascript = `
 function FindProxyForURL(url, host)
 {
 	return "DIRECT";
-}
-`
-
-const pacExtraJavascriptUtils = `
-function alert() {
-	console.log.apply(null, arguments)
 }
 `
 
@@ -42,24 +38,26 @@ func init() {
 
 // Pac is the main proxy auto configuration engine.
 type Pac struct {
-	mutex       *sync.Mutex
+	mutex       *sync.RWMutex
 	runtime     *gopacRuntime
+	pacFile     string
+	pacSrc      []byte
 	connService *PacConnService
 }
 
 // NewPac create a new pac instance.
 func NewPac() (*Pac, error) {
 	p := &Pac{
-		mutex:       &sync.Mutex{},
+		mutex:       &sync.RWMutex{},
 		connService: NewPacConnService(),
 	}
-	if err := p.Load(pacDefaultJavascript); err != nil {
+	if err := p.Unload(); err != nil {
 		return nil, err
 	}
 	return p, nil
 }
 
-// Unload any previously loaded pac configuration and referts to default.
+// Unload any previously loaded pac configuration and reverts to default.
 func (p *Pac) Unload() error {
 	return p.Load(pacDefaultJavascript)
 }
@@ -67,9 +65,26 @@ func (p *Pac) Unload() error {
 // Load attempts to load a pac from a string, a byte slice,
 // a bytes.Buffer, or an io.Reader, but it MUST always be in UTF-8.
 func (p *Pac) Load(js interface{}) error {
-	var err error
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
+	p.pacFile = ""
+	return p.initPacRuntime(js)
+}
+
+// LoadFile attempt to load a pac file.
+func (p *Pac) LoadFile(file string) error {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	p.pacFile, _ = filepath.Abs(f.Name())
+	return p.initPacRuntime(f)
+}
+
+func (p *Pac) initPacRuntime(js interface{}) error {
+	var err error
 	p.runtime, err = newGopacRuntime()
 	if err != nil {
 		return err
@@ -81,6 +96,10 @@ func (p *Pac) Load(js interface{}) error {
 		}
 		return strings.Join(output, " ")
 	}
+	p.runtime.vm.Set("alert", func(call otto.FunctionCall) otto.Value {
+		log.Println("alert:", formatForConsole(call.ArgumentList))
+		return otto.UndefinedValue()
+	})
 	p.runtime.vm.Set("console", map[string]interface{}{
 		"assert": func(call otto.FunctionCall) otto.Value {
 			if b, _ := call.Argument(0).ToBoolean(); !b {
@@ -113,22 +132,39 @@ func (p *Pac) Load(js interface{}) error {
 			return otto.UndefinedValue()
 		},
 	})
-	if _, err := p.runtime.vm.Run(pacExtraJavascriptUtils); err != nil {
-		return err
+	switch js := js.(type) {
+	case string:
+		p.pacSrc = []byte(js)
+	case []byte:
+		p.pacSrc = js
+	case *bytes.Buffer:
+		p.pacSrc = js.Bytes()
+	case io.Reader:
+		var buf bytes.Buffer
+		io.Copy(&buf, js)
+		p.pacSrc = buf.Bytes()
+	default:
+		return errors.New("invalid source")
 	}
-	if _, err := p.runtime.vm.Run(js); err != nil {
+	if _, err := p.runtime.vm.Run(p.pacSrc); err != nil {
 		return err
 	}
 	return nil
 }
 
-// LoadFile attempt to load a pac file.
-func (p *Pac) LoadFile(file string) error {
-	f, err := os.Open(file)
-	if err != nil {
-		return err
-	}
-	return p.Load(f)
+// GetPacFilename returns the path of the corrently loaded pac configuration.
+// Returns an empty string is the pac configuration was not loaded from a file.
+func (p *Pac) GetPacFilename() string {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+	return p.pacFile
+}
+
+// GetPacConfiguration will return the current pac configuration
+func (p *Pac) GetPacConfiguration() []byte {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+	return p.pacSrc
 }
 
 // GetHostFromURL takes a URL and return the host as it would be passed
@@ -147,8 +183,8 @@ func (p *Pac) CallFindProxy(in *url.URL) (string, error) {
 
 // CallFindProxyForURL using the current pac.
 func (p *Pac) CallFindProxyForURL(url, host string) (string, error) {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
 	return p.runtime.findProxyForURL(url, host)
 }
 

@@ -10,15 +10,17 @@ import (
 	"strings"
 )
 
-type HTTPHandler struct {
-	Pac        *Pac
-	HTTPClient *http.Client
+// ProxyHTTPHandler provides the main http handler for running the proxy.
+type ProxyHTTPHandler struct {
+	pac             *Pac
+	httpClient      *http.Client
+	nonProxyHandler http.Handler
 }
 
-func NewHTTPHandler(pac *Pac) *HTTPHandler {
-	return &HTTPHandler{
-		Pac: pac,
-		HTTPClient: &http.Client{
+func NewProxyHTTPHandler(pac *Pac, nonProxyHandler http.Handler) *ProxyHTTPHandler {
+	return &ProxyHTTPHandler{
+		pac: pac,
+		httpClient: &http.Client{
 			Transport: &http.Transport{
 				DisableKeepAlives:  true,
 				DisableCompression: true,
@@ -32,24 +34,23 @@ func NewHTTPHandler(pac *Pac) *HTTPHandler {
 			},
 			Jar: nil,
 		},
+		nonProxyHandler: nonProxyHandler,
 	}
 }
 
-func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *ProxyHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if strings.ToUpper(r.Method) == "CONNECT" {
 		h.doConnect(w, r)
 	} else if r.URL.IsAbs() {
 		h.doProxy(w, r)
+	} else if h.nonProxyHandler != nil {
+		h.nonProxyHandler.ServeHTTP(w, r)
 	} else {
-		h.doNonProxyRequest(w, r)
+		http.Error(w, "", http.StatusBadRequest)
 	}
 }
 
-func (h *HTTPHandler) doNonProxyRequest(w http.ResponseWriter, _ *http.Request) {
-	http.Error(w, "This is a proxy server. Does not respond to non-proxy requests.", http.StatusBadRequest)
-}
-
-func (h *HTTPHandler) doConnect(w http.ResponseWriter, r *http.Request) {
+func (h *ProxyHTTPHandler) doConnect(w http.ResponseWriter, r *http.Request) {
 	var (
 		clientConn net.Conn
 		serverConn net.Conn
@@ -66,7 +67,7 @@ func (h *HTTPHandler) doConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	removeProxyHeaders(r)
-	pacConn, err := h.Pac.GetPacConn(r.URL)
+	pacConn, err := h.pac.GetPacConn(r.URL)
 	if err != nil {
 		http.Error(w, "", http.StatusBadGateway)
 		return
@@ -94,9 +95,9 @@ func (h *HTTPHandler) doConnect(w http.ResponseWriter, r *http.Request) {
 	io.Copy(serverConn, clientConn)
 }
 
-func (h *HTTPHandler) doProxy(w http.ResponseWriter, r *http.Request) {
+func (h *ProxyHTTPHandler) doProxy(w http.ResponseWriter, r *http.Request) {
 	removeProxyHeaders(r)
-	resp, err := h.HTTPClient.Do(r)
+	resp, err := h.httpClient.Do(r)
 	if err != nil {
 		if resp == nil {
 			http.Error(w, "", http.StatusBadGateway)
@@ -106,7 +107,7 @@ func (h *HTTPHandler) doProxy(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 	wh := w.Header()
 	clearHeaders(wh)
-	pacResult, _ := h.Pac.CallFindProxy(r.URL)
+	pacResult, _ := h.pac.CallFindProxy(r.URL)
 	wh.Add("Via", fmt.Sprintf(
 		"%d.%d %s (%s/%s - %s)",
 		r.ProtoMajor, r.ProtoMinor,

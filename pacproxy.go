@@ -42,7 +42,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	httpHandler := NewHTTPHandler(pac)
 	log.Printf("Listening on %q", fListen)
-	log.Fatal(http.ListenAndServe(fListen, httpHandler))
+	log.Fatal(
+		http.ListenAndServe(
+			fListen,
+			NewProxyHTTPHandler(pac, NewNonProxyHTTPHandler(pac)),
+		),
+	)
 }
