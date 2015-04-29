@@ -68,7 +68,6 @@ func (p *Pac) Load(js interface{}) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	p.pacFile = ""
-	p.ConnService.Clear()
 	return p.initPacRuntime(js)
 }
 
@@ -86,6 +85,7 @@ func (p *Pac) LoadFile(file string) error {
 
 func (p *Pac) initPacRuntime(js interface{}) error {
 	var err error
+	p.ConnService.Clear()
 	p.runtime, err = newGopacRuntime()
 	if err != nil {
 		return err
