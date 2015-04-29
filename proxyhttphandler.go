@@ -67,7 +67,7 @@ func (h *ProxyHTTPHandler) doConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	removeProxyHeaders(r)
-	pacConn, err := h.pac.GetPacConn(r.URL)
+	pacConn, err := h.pac.PacConn(r.URL)
 	if err != nil {
 		http.Error(w, "", http.StatusBadGateway)
 		return
@@ -107,7 +107,7 @@ func (h *ProxyHTTPHandler) doProxy(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 	wh := w.Header()
 	clearHeaders(wh)
-	pacResult, _ := h.pac.CallFindProxy(r.URL)
+	pacResult, _ := h.pac.CallFindProxyForURLFromURL(r.URL)
 	wh.Add("Via", fmt.Sprintf(
 		"%d.%d %s (%s/%s - %s)",
 		r.ProtoMajor, r.ProtoMinor,

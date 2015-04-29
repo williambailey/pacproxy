@@ -13,11 +13,11 @@ func NewNonProxyHTTPHandler(pac *Pac) http.Handler {
 	router.RedirectTrailingSlash = false
 	router.GET("/", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintf(w, "%s v%s %s\n", Name, Version, pac.GetPacFilename())
+		fmt.Fprintf(w, "%s v%s %s\n", Name, Version, pac.PacFilename())
 	})
 	router.GET("/wpad.dat", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		w.Header().Set("Content-Type", "application/x-ns-proxy-autoconfig")
-		w.Write(pac.GetPacConfiguration())
+		w.Write(pac.PacConfiguration())
 	})
 	return router
 }

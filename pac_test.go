@@ -1,7 +1,9 @@
 package main
 
 import (
+	"io/ioutil"
 	"net/url"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -27,7 +29,7 @@ func TestPacCallFindProxyForURLRevertsToDefaultWhenNothingHasBeenLoaded(t *testi
 	require.Equal(t, "DIRECT", s)
 }
 
-func TestPacCallFindProxyWithLoadedPacAndThenUnloadAndTryAgain(t *testing.T) {
+func TestPacCallFindProxyForURLWithLoadedPacAndThenUnloadAndTryAgain(t *testing.T) {
 	p, e := NewPac()
 	require.NoError(t, e)
 	require.NoError(t, p.Load(`
@@ -88,4 +90,24 @@ function FindProxyForURL(url, host)
 	out, e := p.Proxy(in)
 	require.NoError(t, e)
 	require.Nil(t, out)
+}
+
+func TestPacPacConfiguration(t *testing.T) {
+	p, e := NewPac()
+	require.NoError(t, e)
+	require.Equal(t, pacDefaultJavascript, string(p.PacConfiguration()))
+	e = p.LoadFile("./resource/test/example.pac")
+	require.NoError(t, e)
+	f, _ := ioutil.ReadFile("./resource/test/example.pac")
+	require.Equal(t, string(f), string(p.PacConfiguration()))
+}
+
+func TestPacPacFilename(t *testing.T) {
+	p, e := NewPac()
+	require.NoError(t, e)
+	require.Equal(t, "", p.PacFilename())
+	e = p.LoadFile("./resource/test/example.pac")
+	require.NoError(t, e)
+	f, _ := filepath.Abs("./resource/test/example.pac")
+	require.Equal(t, f, p.PacFilename())
 }

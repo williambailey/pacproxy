@@ -152,33 +152,33 @@ func (p *Pac) initPacRuntime(js interface{}) error {
 	return nil
 }
 
-// GetPacFilename returns the path of the corrently loaded pac configuration.
+// PacFilename returns the path of the corrently loaded pac configuration.
 // Returns an empty string is the pac configuration was not loaded from a file.
-func (p *Pac) GetPacFilename() string {
+func (p *Pac) PacFilename() string {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 	return p.pacFile
 }
 
-// GetPacConfiguration will return the current pac configuration
-func (p *Pac) GetPacConfiguration() []byte {
+// PacConfiguration will return the current pac configuration
+func (p *Pac) PacConfiguration() []byte {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 	return p.pacSrc
 }
 
-// GetHostFromURL takes a URL and return the host as it would be passed
+// HostFromURL takes a URL and return the host as it would be passed
 // to the FindProxtForURL host argument.
-func (p *Pac) GetHostFromURL(in *url.URL) string {
+func (p *Pac) HostFromURL(in *url.URL) string {
 	if o := strings.Index(in.Host, ":"); o >= 0 {
 		return in.Host[:o]
 	}
 	return in.Host
 }
 
-// CallFindProxy using the current pac for a *url.URL.
-func (p *Pac) CallFindProxy(in *url.URL) (string, error) {
-	return p.CallFindProxyForURL(in.String(), p.GetHostFromURL(in))
+// CallFindProxyForURLFromURL using the current pac for a *url.URL.
+func (p *Pac) CallFindProxyForURLFromURL(in *url.URL) (string, error) {
+	return p.CallFindProxyForURL(in.String(), p.HostFromURL(in))
 }
 
 // CallFindProxyForURL using the current pac.
@@ -188,15 +188,15 @@ func (p *Pac) CallFindProxyForURL(url, host string) (string, error) {
 	return p.runtime.findProxyForURL(url, host)
 }
 
-// GetPacConn returns a *PacConn for the in *url.URL, processing
+// PacConn returns a *PacConn for the in *url.URL, processing
 // the result of the pac find proxy result and trying to ensure that
 // the proxy is active.
-func (p *Pac) GetPacConn(in *url.URL) (*PacConn, error) {
+func (p *Pac) PacConn(in *url.URL) (*PacConn, error) {
 	if in == nil {
 		return nil, nil
 	}
 	urlStr := in.String()
-	hostStr := p.GetHostFromURL(in)
+	hostStr := p.HostFromURL(in)
 	s, err := p.CallFindProxyForURL(urlStr, hostStr)
 	if err != nil {
 		return nil, err
@@ -235,9 +235,9 @@ func (p *Pac) GetPacConn(in *url.URL) (*PacConn, error) {
 
 // Proxy returns the URL of the proxy that the client should use.
 // If the client should establish a direct connect that it will return
-// nil. Can be used for http.Transport.Proxy
+// nil. Can be easly wrapped for use in http.Transport.Proxy
 func (p *Pac) Proxy(in *url.URL) (*url.URL, error) {
-	pc, err := p.GetPacConn(in)
+	pc, err := p.PacConn(in)
 	if pc != nil {
 		return url.Parse("http://" + pc.Address())
 	}
