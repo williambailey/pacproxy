@@ -79,6 +79,18 @@ func (c *PacConn) IsActive() bool {
 	return false
 }
 
+func (c *PacConn) BlacklistDuration() time.Duration {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	now := time.Now()
+	expire := c.updated.Add(c.dialRetry)
+	duration := expire.Sub(now)
+	if duration < 0 {
+		return 0
+	}
+	return duration
+}
+
 func (c *PacConn) Dial() (net.Conn, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -125,6 +137,16 @@ func (s *PacConnService) Clear() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.pacConn = make(map[string]*PacConn, 0)
+}
+
+func (s *PacConnService) KnownProxies() map[string]*PacConn {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	m := make(map[string]*PacConn, len(s.pacConn))
+	for k, v := range s.pacConn {
+		m[k] = v
+	}
+	return m
 }
 
 func (s *PacConnService) IsKnownProxy(address string) bool {

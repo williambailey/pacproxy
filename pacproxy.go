@@ -2,10 +2,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 const Name = "pacproxy"
@@ -41,6 +44,44 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGHUP, syscall.SIGUSR1)
+	go func() {
+		for s := range sigChan {
+			switch s {
+			case syscall.SIGHUP:
+				f := pac.PacFilename()
+				if f == "" {
+					log.Println("Cleaning connection statuses however the current PAC configuration was not loaded from a file.")
+					pac.ConnService.Clear()
+					return
+				}
+				log.Printf("Cleaning connection statuses and reloading PAC configuration from %q.\n", f)
+				if e := pac.LoadFile(f); e != nil {
+					log.Println(e)
+				}
+			case syscall.SIGUSR1:
+				knownProxies := pac.ConnService.KnownProxies()
+				log.Printf("Known proxies: %d\n", len(knownProxies))
+				var (
+					s string
+					i int
+				)
+				for _, p := range knownProxies {
+					i++
+					s = fmt.Sprintf("%3d. %s - ", i, p.Address())
+					bl := p.BlacklistDuration()
+					if bl == 0 {
+						s += fmt.Sprint("Active")
+					} else {
+						s += fmt.Sprintf("Blacklisted (%s)", bl)
+					}
+					log.Println(s)
+				}
+			}
+		}
+	}()
 
 	log.Printf("Listening on %q", fListen)
 	log.Fatal(

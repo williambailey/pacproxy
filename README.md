@@ -23,7 +23,6 @@ curl -I "http://www.example.com"
 ### TODO
 
 - [ ] PAC - SOCKS support
-- [ ] SIGHUP to reload PAC file
 - [ ] Pac lookup via cli
 - [ ] Better verbose output
 - [ ] HTTP stats/lookup/admin UI

@@ -42,14 +42,14 @@ type Pac struct {
 	runtime     *gopacRuntime
 	pacFile     string
 	pacSrc      []byte
-	connService *PacConnService
+	ConnService *PacConnService
 }
 
 // NewPac create a new pac instance.
 func NewPac() (*Pac, error) {
 	p := &Pac{
 		mutex:       &sync.RWMutex{},
-		connService: NewPacConnService(),
+		ConnService: NewPacConnService(),
 	}
 	if err := p.Unload(); err != nil {
 		return nil, err
@@ -68,6 +68,7 @@ func (p *Pac) Load(js interface{}) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	p.pacFile = ""
+	p.ConnService.Clear()
 	return p.initPacRuntime(js)
 }
 
@@ -215,7 +216,7 @@ func (p *Pac) PacConn(in *url.URL) (*PacConn, error) {
 		case "DIRECT":
 			return nil, nil
 		case "PROXY":
-			pacConn := p.connService.Conn(part[1])
+			pacConn := p.ConnService.Conn(part[1])
 			if pacConn.IsActive() {
 				return pacConn, nil
 			}
@@ -247,8 +248,8 @@ func (p *Pac) Proxy(in *url.URL) (*url.URL, error) {
 // Dial can be used for http.Transport.Dial and allows us to reuse
 // a net.Conn that we might already have to a proxy server.
 func (p *Pac) Dial(n, address string) (net.Conn, error) {
-	if p.connService.IsKnownProxy(address) {
-		return p.connService.Conn(address).Dial()
+	if p.ConnService.IsKnownProxy(address) {
+		return p.ConnService.Conn(address).Dial()
 	}
 	return net.Dial(n, address)
 }
