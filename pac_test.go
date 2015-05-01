@@ -75,7 +75,8 @@ function FindProxyForURL(url, host)
 	require.Error(t, e)
 	require.Nil(t, out)
 	require.Contains(t, e.Error(), "Unable to process FindProxyForURL(\"http://example.com:82/foo\", \"example.com\") result \"PROXY 127.0.0.1:9\".\nConnection to \"127.0.0.1:9\" is currently blacklisted for 4m59.")
-	require.Contains(t, e.Error(), "s: dial tcp 127.0.0.1:9: connection refused.")
+	require.Contains(t, e.Error(), "127.0.0.1:9")
+	require.Contains(t, e.Error(), "connection refused.")
 }
 
 func TestPacProxyReturnsNilURLAndNilErrorForProxyResultWhenConnectionFailsButWeHaveDirectFallback(t *testing.T) {
