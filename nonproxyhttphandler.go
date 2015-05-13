@@ -11,6 +11,7 @@ func NewNonProxyHTTPHandler(pac *Pac) http.Handler {
 	router := httprouter.New()
 	router.RedirectFixedPath = false
 	router.RedirectTrailingSlash = false
+	router.Handler("GET", "/pacproxy/*filepath", http.StripPrefix("/pacproxy/", http.FileServer(assetFS())))
 	router.GET("/", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		w.Header().Set("Content-Type", "text/plain")
 		fmt.Fprintf(w, "%s v%s %s\n", Name, Version, pac.PacFilename())

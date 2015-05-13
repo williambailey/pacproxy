@@ -1,5 +1,7 @@
 package main
 
+//go:generate go-bindata-assetfs -pkg $GOPACKAGE -nomemcopy -nocompress -o bindata.go -prefix "resource/bindata/" resource/bindata/...
+
 import (
 	"flag"
 	"fmt"
