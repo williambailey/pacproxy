@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -25,7 +26,17 @@ func NewProxyHTTPHandler(pac *Pac, nonProxyHandler http.Handler) *ProxyHTTPHandl
 				DisableKeepAlives:  true,
 				DisableCompression: true,
 				Proxy: func(r *http.Request) (*url.URL, error) {
-					return pac.Proxy(r.URL)
+					proxyURL, err := pac.Proxy(r.URL)
+					if err == nil {
+						proxyAuth := r.Header.Get("Proxy-Authorization")
+						if proxyAuth != "" {
+							u, p, ok := parseBasicAuth(proxyAuth)
+							if ok {
+								proxyURL.User = url.UserPassword(u, p)
+							}
+						}
+					}
+					return proxyURL, err
 				},
 				Dial: pac.Dial,
 			},
@@ -150,4 +161,23 @@ func copyHeaders(dst, src http.Header) {
 			dst.Add(k, v)
 		}
 	}
+}
+
+// parseBasicAuth parses an HTTP Basic Authentication string.
+// "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==" returns ("Aladdin", "open sesame", true).
+func parseBasicAuth(auth string) (username, password string, ok bool) {
+	const prefix = "Basic "
+	if !strings.HasPrefix(auth, prefix) {
+		return
+	}
+	c, err := base64.StdEncoding.DecodeString(auth[len(prefix):])
+	if err != nil {
+		return
+	}
+	cs := string(c)
+	s := strings.IndexByte(cs, ':')
+	if s < 0 {
+		return
+	}
+	return cs[:s], cs[s+1:], true
 }
