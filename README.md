@@ -20,13 +20,6 @@ export https_proxy="127.0.0.1:12345"
 curl -I "http://www.example.com"
 ```
 
-### TODO
-
-- [ ] PAC - SOCKS support
-- [ ] Pac lookup via cli
-- [ ] Better verbose output
-- [ ] HTTP stats/lookup/admin UI
-
 ## License
 
 > Copyright 2015 William Bailey
