@@ -1,10 +1,10 @@
 package main
 
 //go:generate go-bindata-assetfs -pkg $GOPACKAGE -nomemcopy -nocompress -o bindata.go -prefix "resource/bindata/" resource/bindata/...
+//go:generate gofmt -w bindata_assetfs.go
 
 import (
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -23,7 +23,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&fPac, "c", "proxy.pac", "PAC file to use")
+	flag.StringVar(&fPac, "c", "", "PAC file to use")
 	flag.StringVar(&fListen, "l", "127.0.0.1:12345", "Interface and port to listen on")
 	flag.BoolVar(&fVerbose, "v", false, "send verbose output to STDERR")
 }
@@ -42,13 +42,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = pac.LoadFile(fPac)
-	if err != nil {
-		log.Fatal(err)
+	if fPac != "" {
+		err = pac.LoadFile(fPac)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGHUP, syscall.SIGUSR1)
+	signal.Notify(sigChan, syscall.SIGHUP)
 	go func() {
 		for s := range sigChan {
 			switch s {
@@ -62,24 +64,6 @@ func main() {
 				log.Printf("Cleaning connection statuses and reloading PAC configuration from %q.\n", f)
 				if e := pac.LoadFile(f); e != nil {
 					log.Println(e)
-				}
-			case syscall.SIGUSR1:
-				knownProxies := pac.ConnService.KnownProxies()
-				log.Printf("Known proxies: %d\n", len(knownProxies))
-				var (
-					s string
-					i int
-				)
-				for _, p := range knownProxies {
-					i++
-					s = fmt.Sprintf("%3d. %s - ", i, p.Address())
-					bl := p.BlacklistDuration()
-					if bl == 0 {
-						s += fmt.Sprint("Active")
-					} else {
-						s += fmt.Sprintf("Blacklisted (%s)", bl)
-					}
-					log.Println(s)
 				}
 			}
 		}

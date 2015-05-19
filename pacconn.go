@@ -91,6 +91,11 @@ func (c *PacConn) BlacklistDuration() time.Duration {
 	return duration
 }
 
+func (c *PacConn) BlacklistDurationSecond() time.Duration {
+	duration := c.BlacklistDuration()
+	return duration - (duration % time.Second)
+}
+
 func (c *PacConn) Dial() (net.Conn, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -118,7 +123,9 @@ func (c *PacConn) dialErr() error {
 	}
 	now := time.Now()
 	expire := c.updated.Add(c.dialRetry)
-	return fmt.Errorf("Connection to %q is currently blacklisted for %s: %s", c.address, expire.Sub(now), c.err)
+	duration := expire.Sub(now)
+	duration = duration - (duration % time.Second)
+	return fmt.Errorf("Connection to %q is currently blacklisted for %s: %s", c.address, duration, c.err)
 }
 
 type PacConnService struct {

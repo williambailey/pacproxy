@@ -17,13 +17,6 @@ import (
 	"github.com/robertkrimen/otto"
 )
 
-const pacDefaultJavascript = `
-function FindProxyForURL(url, host)
-{
-	return "DIRECT";
-}
-`
-
 const pacMaxStatements = 10
 
 var (
@@ -59,7 +52,7 @@ func NewPac() (*Pac, error) {
 
 // Unload any previously loaded pac configuration and reverts to default.
 func (p *Pac) Unload() error {
-	return p.Load(pacDefaultJavascript)
+	return p.Load(MustAsset("default.pac"))
 }
 
 // Load attempts to load a pac from a string, a byte slice,

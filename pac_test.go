@@ -12,13 +12,13 @@ import (
 func TestPacLoad(t *testing.T) {
 	p, e := NewPac()
 	require.NoError(t, e)
-	require.NoError(t, p.Load(pacDefaultJavascript))
+	require.NoError(t, p.Load(MustAsset("default.pac")))
 }
 
 func TestPacLoadStringReturnErrorWhenGivenInvalidJavascript(t *testing.T) {
 	p, e := NewPac()
 	require.NoError(t, e)
-	require.Error(t, p.Load(pacDefaultJavascript+"={;}"))
+	require.Error(t, p.Load(string(MustAsset("default.pac"))+"={;}"))
 }
 
 func TestPacCallFindProxyForURLRevertsToDefaultWhenNothingHasBeenLoaded(t *testing.T) {
@@ -74,7 +74,7 @@ function FindProxyForURL(url, host)
 	out, e := p.Proxy(in)
 	require.Error(t, e)
 	require.Nil(t, out)
-	require.Contains(t, e.Error(), "Unable to process FindProxyForURL(\"http://example.com:82/foo\", \"example.com\") result \"PROXY 127.0.0.1:9\".\nConnection to \"127.0.0.1:9\" is currently blacklisted for 4m59.")
+	require.Contains(t, e.Error(), "Unable to process FindProxyForURL(\"http://example.com:82/foo\", \"example.com\") result \"PROXY 127.0.0.1:9\".\nConnection to \"127.0.0.1:9\" is currently blacklisted for 4m59s:")
 	require.Contains(t, e.Error(), "127.0.0.1:9")
 	require.Contains(t, e.Error(), "connection refused.")
 }
@@ -96,7 +96,7 @@ function FindProxyForURL(url, host)
 func TestPacPacConfiguration(t *testing.T) {
 	p, e := NewPac()
 	require.NoError(t, e)
-	require.Equal(t, pacDefaultJavascript, string(p.PacConfiguration()))
+	require.Equal(t, string(MustAsset("default.pac")), string(p.PacConfiguration()))
 	e = p.LoadFile("./resource/test/example.pac")
 	require.NoError(t, e)
 	f, _ := ioutil.ReadFile("./resource/test/example.pac")

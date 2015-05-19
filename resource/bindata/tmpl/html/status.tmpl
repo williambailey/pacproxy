@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ .Name }} v{{ .Version }} - Status</title>
+</head>
+<body>
+  <h1>{{ .Name }} <em>v{{ .Version }}</em></h1>
+  <p><code>{{ .PacFilename }}</code></p>
+  {{ if .KnownProxies }}
+    <h3>Known Proxies</h3>
+    <ul>
+    {{range .KnownProxies}}
+      <li>
+        <code>{{.Address}}</code> <em>- {{if .IsActive}}Active{{else}}Inactive{{end}}</em>
+        <br><small>Last updated {{.Updated.Format "2006-01-02T15:04:05Z07:00"}}</small>
+        {{if .Error }}<br><small>{{ .Error }}</small>{{end}}
+      </li>
+    {{ end }}
+  </ul>
+  {{ end }}
+</body>
+</html>
