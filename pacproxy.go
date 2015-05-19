@@ -9,12 +9,10 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 )
 
 const Name = "pacproxy"
-const Version = "0.8.0"
+const Version = "0.8.1"
 
 var (
 	fPac     string
@@ -49,25 +47,7 @@ func main() {
 		}
 	}
 
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGHUP)
-	go func() {
-		for s := range sigChan {
-			switch s {
-			case syscall.SIGHUP:
-				f := pac.PacFilename()
-				if f == "" {
-					log.Println("Cleaning connection statuses however the current PAC configuration was not loaded from a file.")
-					pac.ConnService.Clear()
-					return
-				}
-				log.Printf("Cleaning connection statuses and reloading PAC configuration from %q.\n", f)
-				if e := pac.LoadFile(f); e != nil {
-					log.Println(e)
-				}
-			}
-		}
-	}()
+	initSignalNotify(pac)
 
 	log.Printf("Listening on %q", fListen)
 	log.Fatal(
