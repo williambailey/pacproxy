@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"expvar"
 	"fmt"
 	"io"
 	"log"
@@ -20,13 +21,26 @@ import (
 const pacMaxStatements = 10
 
 var (
-	pacStatementSplit *regexp.Regexp
-	pacItemSplit      *regexp.Regexp
+	pacStatementSplit                    *regexp.Regexp
+	pacItemSplit                         *regexp.Regexp
+	pacCallFindProxyForURLResultCount    *expvar.Map
+	pacCallFindProxyForURLParamHostCount *expvar.Map
 )
 
 func init() {
 	pacStatementSplit = regexp.MustCompile(`\s*;\s*`)
 	pacItemSplit = regexp.MustCompile(`\s+`)
+
+	pacCallFindProxyForURLResultCount = new(expvar.Map).Init()
+	pacCallFindProxyForURLParamHostCount = new(expvar.Map).Init()
+
+	callFindProxyForURLMap := new(expvar.Map).Init()
+	callFindProxyForURLMap.Set("resultCount", pacCallFindProxyForURLResultCount)
+	callFindProxyForURLMap.Set("urlHostCount", pacCallFindProxyForURLParamHostCount)
+
+	pacExpvarMap := expvar.NewMap("pac")
+	pacExpvarMap.Set("callFindProxyForURL", callFindProxyForURLMap)
+
 }
 
 // Pac is the main proxy auto configuration engine.
@@ -179,7 +193,12 @@ func (p *Pac) CallFindProxyForURLFromURL(in *url.URL) (string, error) {
 func (p *Pac) CallFindProxyForURL(url, host string) (string, error) {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
-	return p.runtime.findProxyForURL(url, host)
+	pacCallFindProxyForURLParamHostCount.Add(host, 1)
+	s, e := p.runtime.findProxyForURL(url, host)
+	if s != "" {
+		pacCallFindProxyForURLResultCount.Add(s, 1)
+	}
+	return s, e
 }
 
 // PacConn returns a *PacConn for the in *url.URL, processing
