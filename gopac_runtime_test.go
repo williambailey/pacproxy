@@ -135,11 +135,11 @@ func TestGopacRuntimeDnsDomainLevels(t *testing.T) {
 
 	www, err := callNumberFunction(rt, "dnsDomainLevels", "www")
 	assert.Nil(t, err, "should not error")
-	assert.Equal(t, www, 0, "'www' should contain 0 domain levels")
+	assert.Equal(t, www, int64(0), "'www' should contain 0 domain levels")
 
 	netscape, err := callNumberFunction(rt, "dnsDomainLevels", "www.netscape.com")
 	assert.Nil(t, err, "should not error")
-	assert.Equal(t, netscape, 2, "'www.netscape.com' should contain 2 domain levels")
+	assert.Equal(t, netscape, int64(2), "'www.netscape.com' should contain 2 domain levels")
 }
 
 func TestGopacRuntimeShExpMatch(t *testing.T) {
