@@ -7,16 +7,18 @@ A no-frills local HTTP proxy server powered by a [proxy auto-config (PAC) file](
 
 ```
 $ ./pacproxy -h
-Usage of ./pacproxy:
-  -c="proxy.pac": PAC file to use
-  -l="127.0.0.1:12345": Interface and port to listen on
-  -v=false: send verbose output to STDERR
+Usage of ./bin/pacproxy:
+  -c string
+    	PAC file to use
+  -l string
+    	Interface and port to listen on (default "127.0.0.1:8080")
+  -v	send verbose output to STDERR
 ```
 
 ```bash
 pacproxy &
-export http_proxy="127.0.0.1:12345"
-export https_proxy="127.0.0.1:12345"
+export http_proxy="127.0.0.1:8080"
+export https_proxy="127.0.0.1:8080"
 curl -I "http://www.example.com"
 ```
 

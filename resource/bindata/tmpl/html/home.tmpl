@@ -6,6 +6,22 @@
 </head>
 <body>
   <h1>{{ .Name }} <em>v{{ .Version }}</em></h1>
-  <p><code>{{ .PacFilename }}</code></p>
+  <p>Pac: <code><a href="/proxy.pac?t=1">{{ if .PacFilename }}{{ .PacFilename }}{{ else }}default{{ end }}</a></code></p>
+  <form action="/lookup-proxy" method="GET">
+    <label>Lookup proxy for <input type="text" name="url" size="50"/></label>
+    <button type="submit" value="">Go</button>
+  </form>
+  {{ if .KnownProxies }}
+    <h3>Known Proxies</h3>
+    <ul>
+    {{range .KnownProxies}}
+      <li>
+        <code>{{.Address}}</code> <em>- {{if .IsActive}}Active{{else}}Inactive{{end}}</em>
+        <br><small>Last updated {{.Updated.Format "2006-01-02T15:04:05Z07:00"}}</small>
+        {{if .Error }}<br><small>{{ .Error }}</small>{{end}}
+      </li>
+    {{ end }}
+    </ul>
+  {{ end }}
 </body>
 </html>

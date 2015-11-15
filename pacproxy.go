@@ -12,7 +12,7 @@ import (
 )
 
 const Name = "pacproxy"
-const Version = "0.8.1"
+const Version = "1.0.0"
 
 var (
 	fPac     string
@@ -22,7 +22,7 @@ var (
 
 func init() {
 	flag.StringVar(&fPac, "c", "", "PAC file to use")
-	flag.StringVar(&fListen, "l", "127.0.0.1:12345", "Interface and port to listen on")
+	flag.StringVar(&fListen, "l", "127.0.0.1:8080", "Interface and port to listen on")
 	flag.BoolVar(&fVerbose, "v", false, "send verbose output to STDERR")
 }
 
@@ -35,6 +35,7 @@ func main() {
 	}
 	log.SetPrefix("")
 	log.SetFlags(log.Ldate | log.Lmicroseconds)
+	log.Printf("Starting %s v%s", Name, Version)
 
 	pac, err := NewPac()
 	if err != nil {

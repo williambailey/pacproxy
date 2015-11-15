@@ -66,6 +66,7 @@ func NewPac() (*Pac, error) {
 
 // Unload any previously loaded pac configuration and reverts to default.
 func (p *Pac) Unload() error {
+	log.Print("Unloading pac")
 	return p.Load(MustAsset("default.pac"))
 }
 
@@ -75,6 +76,7 @@ func (p *Pac) Load(js interface{}) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	p.pacFile = ""
+	log.Print("Loading pac from string")
 	return p.initPacRuntime(js)
 }
 
@@ -87,6 +89,7 @@ func (p *Pac) LoadFile(file string) error {
 		return err
 	}
 	p.pacFile, _ = filepath.Abs(f.Name())
+	log.Printf("Loading pac from file %s", p.pacFile)
 	return p.initPacRuntime(f)
 }
 
