@@ -15,15 +15,21 @@
 //package gopac
 package main
 
-import "github.com/robertkrimen/otto"
+import (
+	"sync"
+
+	"github.com/robertkrimen/otto"
+)
 
 type gopacRuntime struct {
-	vm *otto.Otto
+	mutex *sync.Mutex
+	vm    *otto.Otto
 }
 
 func newGopacRuntime() (*gopacRuntime, error) {
 	rt := &gopacRuntime{
-		vm: otto.New(),
+		mutex: &sync.Mutex{},
+		vm:    otto.New(),
 	}
 
 	rt.vm.Set("isPlainHostName", rt.isPlainHostName)
@@ -44,6 +50,8 @@ func newGopacRuntime() (*gopacRuntime, error) {
 }
 
 func (rt *gopacRuntime) run(content string) error {
+	rt.mutex.Lock()
+	defer rt.mutex.Unlock()
 	if _, err := rt.vm.Run(content); err != nil {
 		return err
 	}
@@ -52,6 +60,8 @@ func (rt *gopacRuntime) run(content string) error {
 }
 
 func (rt *gopacRuntime) findProxyForURL(url, host string) (string, error) {
+	rt.mutex.Lock()
+	defer rt.mutex.Unlock()
 	value, err := rt.vm.Call("FindProxyForURL", nil, url, host)
 
 	if err != nil {

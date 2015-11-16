@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/url"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -111,4 +113,36 @@ func TestPacPacFilename(t *testing.T) {
 	require.NoError(t, e)
 	f, _ := filepath.Abs("./resource/test/example.pac")
 	require.Equal(t, f, p.PacFilename())
+}
+
+func TestPacCallFindProxyForURLFromGoRoutineDoesNotHaveRaceIssues(t *testing.T) {
+	p, e := NewPac()
+	require.NoError(t, e)
+	require.NoError(t, p.Load(`
+function FindProxyForURL(url, host)
+{
+	return "PROXY " + host;
+}`))
+	var wg sync.WaitGroup
+	max := 1000
+	c := make(chan string, max)
+	for i := 0; i < max; i++ {
+		wg.Add(1)
+		go func(i int) {
+			s, e := p.CallFindProxyForURL(fmt.Sprintf("http://%d", i), fmt.Sprintf("%d", i))
+			c <- s
+			wg.Done()
+			require.NoError(t, e)
+			require.Equal(t, fmt.Sprintf("PROXY %d", i), s)
+		}(i)
+	}
+	inSequance := true
+	for i := 0; i < max; i++ {
+		s := <-c
+		if fmt.Sprintf("PROXY %d", i) != s {
+			inSequance = false
+		}
+	}
+	require.Equal(t, inSequance, false)
+	wg.Wait()
 }

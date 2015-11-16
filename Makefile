@@ -9,10 +9,10 @@ deps:
 
 build:
 	@mkdir -p bin/
-	go build -o bin/$(NAME)
+	go build -race -o bin/$(NAME)
 
 test:
-	go test
+	go test -race
 
 xcompile: deps test
 	@rm -rf build/
