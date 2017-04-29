@@ -7,24 +7,20 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/williambailey/pacproxy/pac"
 )
 
-func initSignalNotify(pac *Pac) {
+func initSignalNotify(pac pac.EngineManager) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGHUP)
 	go func() {
 		for s := range sigChan {
 			switch s {
 			case syscall.SIGHUP:
-				f := pac.PacFilename()
-				if f == "" {
-					log.Println("Cleaning connection statuses however the current PAC configuration was not loaded from a file.")
-					pac.ConnService.Clear()
-					return
-				}
-				log.Printf("Cleaning connection statuses and reloading PAC configuration from %q.\n", f)
-				if e := pac.LoadFile(f); e != nil {
-					log.Println(e)
+				log.Print("SIGHUP")
+				if err := pac.Reload(); err != nil {
+					log.Panic(err)
 				}
 			}
 		}

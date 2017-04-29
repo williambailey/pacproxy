@@ -1,3 +1,4 @@
 pacproxy
 proxy.pac
 build
+*.log

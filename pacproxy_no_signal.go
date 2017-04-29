@@ -2,5 +2,7 @@
 
 package main
 
-func initSignalNotify(_ *Pac) {
+import "github.com/williambailey/pacproxy/pac"
+
+func initSignalNotify(_ pac.EngineManager) {
 }

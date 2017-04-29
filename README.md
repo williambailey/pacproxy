@@ -9,14 +9,16 @@ A no-frills local HTTP proxy server powered by a [proxy auto-config (PAC) file](
 $ ./pacproxy -h
 Usage of ./bin/pacproxy:
   -c string
-    	PAC file to use
+    	PAC file name, url, or javascript to use
   -l string
     	Interface and port to listen on (default "127.0.0.1:8080")
   -v	send verbose output to STDERR
 ```
 
 ```bash
-pacproxy &
+# shell 1
+pacproxy -c 'function FindProxyForURL(url, host){ console.log("hello pac world!"); return "PROXY random.example.com:8080"; }'
+# shell 2
 export http_proxy="127.0.0.1:8080"
 export https_proxy="127.0.0.1:8080"
 curl -I "http://www.example.com"
@@ -24,7 +26,7 @@ curl -I "http://www.example.com"
 
 ## License
 
-> Copyright 2015 William Bailey
+> Copyright 2017 William Bailey
 >
 > Licensed under the Apache License, Version 2.0 (the "License");
 > you may not use this file except in compliance with the License.

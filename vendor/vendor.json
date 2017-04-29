@@ -1,0 +1,61 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "EqyHXBcg5cWi4ERsMXN6g1opi1o=",
+			"path": "github.com/robertkrimen/otto",
+			"revision": "21ec96599b1279b5673e4df0097dd56bb8360068",
+			"revisionTime": "2017-04-24T10:46:44Z"
+		},
+		{
+			"checksumSHA1": "qgziiO3/QDVJMKw2nGrUbC8QldY=",
+			"path": "github.com/robertkrimen/otto/ast",
+			"revision": "21ec96599b1279b5673e4df0097dd56bb8360068",
+			"revisionTime": "2017-04-24T10:46:44Z"
+		},
+		{
+			"checksumSHA1": "L0KsB2EzTlPgv0iae3q3SukNW7U=",
+			"path": "github.com/robertkrimen/otto/dbg",
+			"revision": "21ec96599b1279b5673e4df0097dd56bb8360068",
+			"revisionTime": "2017-04-24T10:46:44Z"
+		},
+		{
+			"checksumSHA1": "euDLJKhw4doeTSxjEoezjxYXLzs=",
+			"path": "github.com/robertkrimen/otto/file",
+			"revision": "21ec96599b1279b5673e4df0097dd56bb8360068",
+			"revisionTime": "2017-04-24T10:46:44Z"
+		},
+		{
+			"checksumSHA1": "LLuLITFO8chqSG0+APJIy5NtOHU=",
+			"path": "github.com/robertkrimen/otto/parser",
+			"revision": "21ec96599b1279b5673e4df0097dd56bb8360068",
+			"revisionTime": "2017-04-24T10:46:44Z"
+		},
+		{
+			"checksumSHA1": "7J/7NaYRqKhBvZ+dTIutsEoEgFw=",
+			"path": "github.com/robertkrimen/otto/registry",
+			"revision": "21ec96599b1279b5673e4df0097dd56bb8360068",
+			"revisionTime": "2017-04-24T10:46:44Z"
+		},
+		{
+			"checksumSHA1": "/jMXYuXycBpTqWhRyJ2xsqvHvQI=",
+			"path": "github.com/robertkrimen/otto/token",
+			"revision": "21ec96599b1279b5673e4df0097dd56bb8360068",
+			"revisionTime": "2017-04-24T10:46:44Z"
+		},
+		{
+			"checksumSHA1": "4BwmmgQUhWtizsR2soXND0nqZ1I=",
+			"path": "gopkg.in/sourcemap.v1",
+			"revision": "6e83acea0053641eff084973fee085f0c193c61a",
+			"revisionTime": "2017-02-13T14:20:43Z"
+		},
+		{
+			"checksumSHA1": "GDXPA04g0Dfwu2w++JiOKkYuZEc=",
+			"path": "gopkg.in/sourcemap.v1/base64vlq",
+			"revision": "6e83acea0053641eff084973fee085f0c193c61a",
+			"revisionTime": "2017-02-13T14:20:43Z"
+		}
+	],
+	"rootPath": "github.com/williambailey/pacproxy"
+}

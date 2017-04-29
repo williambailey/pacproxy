@@ -5,55 +5,67 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
+
+	"github.com/williambailey/pacproxy/pac"
 )
 
-// ProxyHTTPHandler provides the main http handler for running the proxy.
-type ProxyHTTPHandler struct {
-	pac             *Pac
+type proxyHTTPHandler struct {
+	proxyFinder     pac.ProxyFinder
+	proxySelector   pac.ProxySelector
 	httpClient      *http.Client
+	dialer          *net.Dialer
 	nonProxyHandler http.Handler
 }
 
-func NewProxyHTTPHandler(pac *Pac, nonProxyHandler http.Handler) *ProxyHTTPHandler {
-	return &ProxyHTTPHandler{
-		pac: pac,
+func newProxyHTTPHandler(
+	proxyFinder pac.ProxyFinder,
+	proxySelector pac.ProxySelector,
+	nonProxyHandler http.Handler,
+) *proxyHTTPHandler {
+	dialer := &net.Dialer{
+		Timeout:   10 * time.Second,
+		KeepAlive: 10 * time.Second,
+	}
+	transport := &http.Transport{
+		DisableKeepAlives:     false,
+		DisableCompression:    false,
+		MaxIdleConns:          50,
+		MaxIdleConnsPerHost:   20,
+		IdleConnTimeout:       5 * time.Second,
+		ResponseHeaderTimeout: 60 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		Proxy:                 nil,
+		Dial:                  dialer.Dial,
+	}
+	handler := &proxyHTTPHandler{
+		proxyFinder:   proxyFinder,
+		proxySelector: proxySelector,
 		httpClient: &http.Client{
-			Transport: &http.Transport{
-				DisableKeepAlives:  true,
-				DisableCompression: true,
-				Proxy: func(r *http.Request) (*url.URL, error) {
-					proxyURL, err := pac.Proxy(r.URL)
-					if err == nil {
-						proxyAuth := r.Header.Get("Proxy-Authorization")
-						if proxyAuth != "" {
-							u, p, ok := parseBasicAuth(proxyAuth)
-							if ok {
-								proxyURL.User = url.UserPassword(u, p)
-							}
-						}
-					}
-					return proxyURL, err
-				},
-				Dial: pac.Dial,
-			},
+			Transport: transport,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return errors.New("Don't follow redirects")
 			},
 			Jar: nil,
 		},
+		dialer:          dialer,
 		nonProxyHandler: nonProxyHandler,
 	}
+	transport.Proxy = handler.lookupProxy
+	return handler
 }
 
-func (h *ProxyHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *proxyHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if strings.ToUpper(r.Method) == "CONNECT" {
-		h.doConnect(w, r)
+		h.doConnectProxy(w, r)
 	} else if r.URL.IsAbs() {
-		h.doProxy(w, r)
+		h.doHTTPProxy(w, r)
 	} else if h.nonProxyHandler != nil {
 		h.nonProxyHandler.ServeHTTP(w, r)
 	} else {
@@ -61,71 +73,92 @@ func (h *ProxyHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *ProxyHTTPHandler) doConnect(w http.ResponseWriter, r *http.Request) {
+func (h *proxyHTTPHandler) lookupProxy(r *http.Request) (*url.URL, error) {
+	proxies, err := h.proxyFinder.FindProxyForURL(r.URL)
+	if err != nil {
+		return nil, err
+	}
+	proxy := h.proxySelector.SelectProxy(proxies)
+	log.Printf("Proxy Lookup %q, got %q. Selected %q", r.URL, proxies, proxy)
+	if proxy == pac.DirectProxy {
+		return nil, nil
+	}
+	proxyURL := &url.URL{
+		Host: fmt.Sprintf("%s:%d", proxy.Hostname, proxy.Port),
+	}
+	if proxyAuth := r.Header.Get("Proxy-Authorization"); proxyAuth != "" {
+		if u, p, ok := parseBasicAuth(proxyAuth); ok {
+			proxyURL.User = url.UserPassword(u, p)
+		}
+	}
+	return proxyURL, nil
+}
+
+func (h *proxyHTTPHandler) doConnectProxy(w http.ResponseWriter, r *http.Request) {
 	var (
 		clientConn net.Conn
 		serverConn net.Conn
 		err        error
 	)
+
+	proxyURL, err := h.lookupProxy(r)
+	if err != nil {
+		log.Printf("HTTP Connect Proxy %q: %d %s", r.URL, http.StatusBadGateway, err)
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	if proxyURL == nil {
+		serverConn, err = h.dialer.Dial("tcp", r.URL.Host)
+		if err != nil {
+			log.Printf("HTTP Connect Proxy %q: %d %s", r.URL, http.StatusBadGateway, err)
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		defer serverConn.Close()
+	} else {
+		serverConn, err = h.dialer.Dial("tcp", proxyURL.Hostname()+":"+proxyURL.Port())
+		if err != nil {
+			log.Printf("HTTP Connect Proxy %q: %d %s", r.URL, http.StatusBadGateway, err)
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		defer serverConn.Close()
+		removeProxyHeaders(r)
+		r.WriteProxy(serverConn)
+	}
 	hj, ok := w.(http.Hijacker)
 	if !ok {
-		http.Error(w, "", http.StatusInternalServerError)
+		err = errors.New("unable to get hijacker")
+		log.Printf("HTTP Connect Proxy %q: %d %s", r.URL, http.StatusBadGateway, err)
+		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 	clientConn, _, err = hj.Hijack()
 	if err != nil {
-		http.Error(w, "", http.StatusInternalServerError)
+		log.Printf("HTTP Connect Proxy %q: %d %s", r.URL, http.StatusBadGateway, err)
+		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
-	}
-	removeProxyHeaders(r)
-	pacConn, err := h.pac.PacConn(r.URL)
-	if err != nil {
-		http.Error(w, "", http.StatusBadGateway)
-		return
-	}
-	if pacConn != nil {
-		serverConn, err = pacConn.Dial()
-		if err != nil {
-			http.Error(w, "", http.StatusBadGateway)
-			return
-		}
-		defer serverConn.Close()
-		r.WriteProxy(serverConn)
-	} else {
-		serverConn, err = net.Dial("tcp", r.URL.Host)
-		if err != nil {
-			http.Error(w, "", http.StatusBadGateway)
-			return
-		}
-		defer serverConn.Close()
-		clientConn.Write([]byte("HTTP/1.0 200 OK\r\n\r\n"))
 	}
 	defer clientConn.Close()
-	defer serverConn.Close()
+	if proxyURL == nil {
+		clientConn.Write([]byte("HTTP/1.0 200 OK\r\n\r\n"))
+	}
 	go io.Copy(clientConn, serverConn)
 	io.Copy(serverConn, clientConn)
 }
 
-func (h *ProxyHTTPHandler) doProxy(w http.ResponseWriter, r *http.Request) {
+func (h *proxyHTTPHandler) doHTTPProxy(w http.ResponseWriter, r *http.Request) {
 	removeProxyHeaders(r)
 	resp, err := h.httpClient.Do(r)
-	if err != nil {
-		if resp == nil {
-			http.Error(w, "", http.StatusBadGateway)
-			return
-		}
+	if err != nil && resp == nil {
+		log.Printf("HTTP Proxy %q: %d %s", r.URL, http.StatusBadGateway, err)
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
 	}
 	defer resp.Body.Close()
 	wh := w.Header()
 	clearHeaders(wh)
-	pacResult, _ := h.pac.CallFindProxyForURLFromURL(r.URL)
-	wh.Add("Via", fmt.Sprintf(
-		"%d.%d %s (%s/%s - %s)",
-		r.ProtoMajor, r.ProtoMinor,
-		Name,
-		Name, Version,
-		pacResult,
-	))
 	copyHeaders(wh, resp.Header)
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
