@@ -66,7 +66,6 @@ func listenAndServe(pacFile, listen string) error {
 	srv := &http.Server{
 		Addr:              listen,
 		ReadHeaderTimeout: 2 * time.Second,
-		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       60 * time.Second,
 		Handler: newProxyHTTPHandler(
 			otto,
