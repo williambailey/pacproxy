@@ -24,7 +24,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&fPac, "c", "", "PAC file name, url, or javascript to use")
+	flag.StringVar(&fPac, "c", "", "PAC file name, url or javascript to use")
 	flag.StringVar(&fListen, "l", "127.0.0.1:8080", "Interface and port to listen on")
 	flag.BoolVar(&fVerbose, "v", false, "send verbose output to STDERR")
 }
