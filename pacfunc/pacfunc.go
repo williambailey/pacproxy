@@ -1,11 +1,21 @@
 package pacfunc
 
 import (
+	"encoding/binary"
 	"net"
 	"os"
 	"regexp"
 	"strings"
 )
+
+// ConvertAddr converts an IPv4 dotted decimal IP address or an IPv6 IP address to an integer
+func ConvertAddr(ipaddr string) uint32 {
+	ip := net.ParseIP(ipaddr)
+	if len(ip) == 16 {
+		return binary.BigEndian.Uint32(ip[12:16])
+	}
+	return binary.BigEndian.Uint32(ip)
+}
 
 // DNSDomainIs evaluates hostnames and returns true if hostnames match.
 //

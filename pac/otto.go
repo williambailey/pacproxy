@@ -73,6 +73,22 @@ func (o *OttoEngine) Start() error {
 	log.Print("initialising OttoEngine")
 	vm := otto.New()
 
+	// ConvertAddr(ipaddr string)
+	vm.Set("convert_addr", func(call otto.FunctionCall) (value otto.Value) {
+		value = otto.FalseValue()
+		var (
+			ipaddr string
+			err    error
+		)
+		if ipaddr, err = call.Argument(0).ToString(); err != nil {
+			return
+		}
+		if v, err := vm.ToValue(pacfunc.ConvertAddr(ipaddr)); err == nil {
+			value = v
+		}
+		return
+	})
+
 	// DNSDomainIs(host, domain string) bool
 	vm.Set("dnsDomainIs", func(call otto.FunctionCall) (value otto.Value) {
 		value = otto.FalseValue()

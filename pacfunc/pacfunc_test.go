@@ -4,6 +4,19 @@ import (
 	"testing"
 )
 
+func TestConvertAddr(t *testing.T) {
+	assertTrue := func(i string, d uint32) {
+		v := ConvertAddr(i)
+		if v != d {
+			t.Errorf("%q should convert to %d, got %d", i, d, v)
+		}
+	}
+	assertTrue("127.0.0.1", 2130706433)
+	assertTrue("10.56.23.193", 171448257)
+	assertTrue("0:0:0:0:0:0:7f00:1", 2130706433)
+	assertTrue("2000:4A2B::1f3F", 7999)
+}
+
 func TestDNSDomainIs(t *testing.T) {
 	if !DNSDomainIs("www.netscape.com", ".netscape.com") {
 		t.Error("'www.netscape.com' should be a valid host for domain '.netscape.com'")
