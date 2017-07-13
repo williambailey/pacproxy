@@ -125,7 +125,8 @@ func (h *proxyHTTPHandler) doConnectProxy(w http.ResponseWriter, r *http.Request
 		}
 		defer serverConn.Close()
 		removeProxyHeaders(r)
-		r.WriteProxy(serverConn)
+		//r.WriteProxy(serverConn)
+		r.Write(serverConn) // instead of WriteProxy as this will *hopefully* deal with CONNECT correctly.
 	}
 	hj, ok := w.(http.Hijacker)
 	if !ok {
