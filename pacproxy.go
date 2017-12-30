@@ -15,7 +15,7 @@ import (
 const Name = "pacproxy"
 
 // Version of the app
-const Version = "2.0.0-beta.1"
+const Version = "2.0.0-beta.2"
 
 var (
 	fPac     string
@@ -40,31 +40,18 @@ func main() {
 	log.SetFlags(log.Ldate | log.Lmicroseconds | log.Lshortfile | log.LUTC)
 	log.Printf("Starting %s v%s", Name, Version)
 
-	for {
-		if err := listenAndServe(fPac, fListen); err != nil {
-			log.Panic(err)
-		}
-	}
-}
-
-func listenAndServe(pacFile, listen string) error {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Print("Recovered")
-		}
-	}()
 	otto := pac.NewOttoEngine(
-		pac.OttoLoader(pac.SmartLoader(pacFile)),
+		pac.OttoLoader(pac.SmartLoader(fPac)),
 	)
 	if err := otto.Start(); err != nil {
-		return err
+		log.Panic(err)
 	}
 	defer otto.Stop()
 
 	initSignalNotify(otto)
 
 	srv := &http.Server{
-		Addr:              listen,
+		Addr:              fListen,
 		ReadHeaderTimeout: 2 * time.Second,
 		IdleTimeout:       60 * time.Second,
 		Handler: newProxyHTTPHandler(
@@ -73,10 +60,8 @@ func listenAndServe(pacFile, listen string) error {
 			newNonProxyHTTPHandler(),
 		),
 	}
-	log.Printf("Listening on %q", listen)
-	err := srv.ListenAndServe()
-	if err != nil {
-		panic(err)
+	log.Printf("Listening on %q", fListen)
+	if err := srv.ListenAndServe(); err != nil {
+		log.Panic(err)
 	}
-	return nil
 }
