@@ -2,6 +2,7 @@ package pacfunc
 
 import (
 	"testing"
+	"time"
 )
 
 func TestConvertAddr(t *testing.T) {
@@ -136,4 +137,106 @@ func TestDNSDomainLevels(t *testing.T) {
 	assertLevels("local.host", 1)
 	assertLevels("www.example.org", 2)
 	assertLevels("a.b.c.d.example.org", 5)
+}
+
+var (
+	ny, _        = time.LoadLocation("America/New_York")
+	sundayUTC    = time.Date(2017, 12, 31, 0, 0, 0, 0, time.UTC)
+	mondayUTC    = time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
+	tuesdayUTC   = time.Date(2018, 1, 2, 0, 0, 0, 0, time.UTC)
+	wednesdayUTC = time.Date(2018, 1, 3, 0, 0, 0, 0, time.UTC)
+	thursdayUTC  = time.Date(2018, 1, 4, 0, 0, 0, 0, time.UTC)
+	fridayUTC    = time.Date(2018, 1, 5, 0, 0, 0, 0, time.UTC)
+	saturdayUTC  = time.Date(2018, 1, 6, 0, 0, 0, 0, time.UTC)
+)
+
+var weekdayRangeTests = []struct {
+	now    time.Time
+	wd1    string
+	wd2    string
+	gmt    string
+	result bool
+}{
+	{sundayUTC, "SUN", "", "", true},
+	{mondayUTC, "MON", "", "", true},
+	{tuesdayUTC, "TUE", "", "", true},
+	{wednesdayUTC, "WED", "", "", true},
+	{thursdayUTC, "THU", "", "", true},
+	{fridayUTC, "FRI", "", "", true},
+	{saturdayUTC, "SAT", "", "", true},
+	{mondayUTC, "x", "", "", false},
+	{mondayUTC, "x", "y", "", false},
+	{mondayUTC, "x", "y", "z", false},
+	{mondayUTC, "", "", "", false},
+	{mondayUTC, "SUN", "", "", false},
+	{mondayUTC, "SUN", "MON", "", true},
+	{mondayUTC, "MON", "SUN", "", true},
+	{mondayUTC.In(ny), "MON", "", "", false},
+	{mondayUTC.In(ny), "MON", "GMT", "", true},
+	{mondayUTC.In(ny), "MON", "", "GMT", true},
+	{mondayUTC.In(ny), "SUN", "", "", true},
+	{wednesdayUTC, "SUN", "WED", "", true},
+	{wednesdayUTC, "MON", "WED", "", true},
+	{wednesdayUTC, "WED", "SAT", "", true},
+	{wednesdayUTC, "WED", "SUN", "", true},
+	{wednesdayUTC, "SUN", "TUE", "", false},
+	{wednesdayUTC, "MON", "TUE", "", false},
+	{wednesdayUTC, "TUE", "SAT", "", true},
+	{wednesdayUTC, "TUE", "SUN", "", false},
+}
+
+func TestWeekdayRange(t *testing.T) {
+	defer func() {
+		DefaultNower = &TimeNower{}
+	}()
+	for _, tt := range weekdayRangeTests {
+		DefaultNower = &StaticNower{tt.now}
+		result := WeekdayRange(tt.wd1, tt.wd2, tt.gmt)
+		if result != tt.result {
+			t.Errorf("Expecting %q, %q, %q to return %v", tt.wd1, tt.wd2, tt.gmt, tt.result)
+		}
+	}
+}
+
+var dateRangeTests = []struct {
+	now    time.Time
+	args   []string
+	result bool
+}{
+	{mondayUTC, []string{}, false},
+}
+
+func TestDateRange(t *testing.T) {
+	defer func() {
+		DefaultNower = &TimeNower{}
+	}()
+	for _, tt := range dateRangeTests {
+		DefaultNower = &StaticNower{tt.now}
+		result := DateRange(tt.args)
+		if result != tt.result {
+			t.Errorf("Expecting %v to return %v", tt.args, tt.result)
+		}
+	}
+
+}
+
+var timeRangeTests = []struct {
+	now    time.Time
+	args   []string
+	result bool
+}{
+	{mondayUTC, []string{}, false},
+}
+
+func TestTimeRange(t *testing.T) {
+	defer func() {
+		DefaultNower = &TimeNower{}
+	}()
+	for _, tt := range timeRangeTests {
+		DefaultNower = &StaticNower{tt.now}
+		result := DateRange(tt.args)
+		if result != tt.result {
+			t.Errorf("Expecting %v to return %v", tt.args, tt.result)
+		}
+	}
 }

@@ -6,7 +6,53 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 )
+
+var (
+	// DefaultNower thats used by these functions to get the currant time
+	DefaultNower Nower
+
+	dayMap = map[string]time.Weekday{
+		"SUN": time.Sunday,
+		"MON": time.Monday,
+		"TUE": time.Tuesday,
+		"WED": time.Wednesday,
+		"THU": time.Thursday,
+		"FRI": time.Friday,
+		"SAT": time.Saturday,
+	}
+)
+
+func init() {
+	DefaultNower = &TimeNower{}
+}
+
+// Nower is responsible for returning the current time
+type Nower interface {
+	Now() time.Time
+}
+
+// TimeNower implements Nower using the time package.
+type TimeNower struct {
+	static *time.Time
+}
+
+func (t TimeNower) Now() time.Time {
+	if t.static != nil {
+		return *t.static
+	}
+	return time.Now()
+}
+
+// StaticNower implements Nower with a static value
+type StaticNower struct {
+	now time.Time
+}
+
+func (s StaticNower) Now() time.Time {
+	return s.now
+}
 
 // ConvertAddr converts an IPv4 dotted decimal IP address or an IPv6 IP address to an integer
 func ConvertAddr(ipaddr string) uint32 {
@@ -106,4 +152,70 @@ func IsResolvable(host string) bool {
 // DNS names, e.g. http://intranet
 func DNSDomainLevels(host string) int {
 	return strings.Count(host, ".")
+}
+
+// WeekdayRange return true if the current date is during that period
+//
+// Only the first parameter is mandatory. Either the second, the third, or
+// both may be left out.
+//
+// If only one parameter is present, the function returns a value of true
+// on the weekday that the parameter represents. If the string "GMT" is
+// specified as a second parameter, times are taken to be in GMT. Otherwise,
+// they are assumed to be in the local timezone.
+//
+// If both wd1 and wd1 are defined, the condition is true if the current
+// weekday is in between those two ordered weekdays. Bounds are inclusive,
+// but the bounds are ordered. If the "GMT" parameter is specified, times
+// are taken to be in GMT. Otherwise, the local timezone is used.
+func WeekdayRange(wd1, wd2, gmt string) bool {
+	wd1 = strings.ToUpper(wd1)
+	wd2 = strings.ToUpper(wd2)
+	gmt = strings.ToUpper(gmt)
+	if wd2 == "GMT" {
+		wd2 = ""
+		gmt = "GMT"
+	}
+	if wd2 == "" {
+		wd2 = wd1
+	}
+	now := DefaultNower.Now()
+	if gmt == "GMT" {
+		now = now.UTC()
+	}
+	today := now.Weekday()
+	var (
+		ok       = true
+		weekday1 time.Weekday
+		weekday2 time.Weekday
+	)
+	if weekday1, ok = dayMap[wd1]; !ok {
+		return false
+	}
+	if weekday2, ok = dayMap[wd2]; !ok {
+		return false
+	}
+	if weekday1 == weekday2 && weekday1 == today {
+		return true
+	}
+	if weekday1 > weekday2 {
+		weekday2, weekday1 = weekday1, weekday2
+	}
+	return (weekday1 <= today) && (today <= weekday2)
+}
+
+// DateRange return true during (or between) the specified date(s).
+//
+// (<day1>, <month1>, <year1>, <day2>, <month2>, <year2>, <gmt>)
+func DateRange(args []string) bool {
+	panic("DateRance is not yet implemented")
+	return false
+}
+
+// TimeRange return true during (or between) the specified time(s).
+//
+// (<hour1>, <min1>, <sec1>, <hour2>, <min2>, <sec2>, <gmt>)
+func TimeRange(args []string) bool {
+	panic("TimeRance is not yet implemented")
+	return false
 }

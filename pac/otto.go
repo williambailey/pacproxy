@@ -246,6 +246,59 @@ func (o *OttoEngine) Start() error {
 		return
 	})
 
+	// WeekdayRange(wd1, wd2, gmt string) bool
+	vm.Set("weekdayRange", func(call otto.FunctionCall) (value otto.Value) {
+		value = otto.FalseValue()
+		var (
+			wd1, wd2, gmt string
+		)
+		if call.Argument(0).IsDefined() {
+			wd1, _ = call.Argument(0).ToString()
+		} else {
+			wd1 = ""
+		}
+		if call.Argument(1).IsDefined() {
+			wd2, _ = call.Argument(1).ToString()
+		} else {
+			wd2 = ""
+		}
+		if call.Argument(2).IsDefined() {
+			gmt, _ = call.Argument(2).ToString()
+		} else {
+			gmt = ""
+		}
+		if v, err := vm.ToValue(pacfunc.WeekdayRange(wd1, wd2, gmt)); err == nil {
+			value = v
+		}
+		return
+	})
+
+	// DateRange(args []string) bool
+	vm.Set("dateRange", func(call otto.FunctionCall) (value otto.Value) {
+		value = otto.FalseValue()
+		args := make([]string, len(call.ArgumentList))
+		for i := 0; i < len(call.ArgumentList); i++ {
+			args[i], _ = call.ArgumentList[i].ToString()
+		}
+		if v, err := vm.ToValue(pacfunc.DateRange(args)); err == nil {
+			value = v
+		}
+		return
+	})
+
+	// TimeRange(args []string) bool
+	vm.Set("timeRange", func(call otto.FunctionCall) (value otto.Value) {
+		value = otto.FalseValue()
+		args := make([]string, len(call.ArgumentList))
+		for i := 0; i < len(call.ArgumentList); i++ {
+			args[i], _ = call.ArgumentList[i].ToString()
+		}
+		if v, err := vm.ToValue(pacfunc.TimeRange(args)); err == nil {
+			value = v
+		}
+		return
+	})
+
 	{
 		pac, pacError := o.loader()
 		if pacError != nil {
