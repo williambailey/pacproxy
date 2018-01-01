@@ -189,11 +189,11 @@ func TestWeekdayRange(t *testing.T) {
 	defer func() {
 		DefaultNower = &TimeNower{}
 	}()
-	for _, tt := range weekdayRangeTests {
+	for i, tt := range weekdayRangeTests {
 		DefaultNower = &StaticNower{tt.now}
 		result := WeekdayRange(tt.wd1, tt.wd2, tt.gmt)
 		if result != tt.result {
-			t.Errorf("Expecting %q, %q, %q to return %v", tt.wd1, tt.wd2, tt.gmt, tt.result)
+			t.Errorf("Expecting test %d (%q, %q, %q) to return %v", i, tt.wd1, tt.wd2, tt.gmt, tt.result)
 		}
 	}
 }
@@ -204,17 +204,75 @@ var dateRangeTests = []struct {
 	result bool
 }{
 	{mondayUTC, []string{}, false},
+	{mondayUTC, []string{"FOO"}, false},
+	{mondayUTC, []string{"FOO", "BAR"}, false},
+	{mondayUTC, []string{"1", "BAR"}, false},
+	{mondayUTC, []string{"1"}, true},
+	{mondayUTC, []string{"JAN"}, true},
+	{mondayUTC, []string{"2018"}, true},
+	{mondayUTC, []string{"2"}, false},
+	{mondayUTC, []string{"FEB"}, false},
+	{mondayUTC, []string{"2019"}, false},
+	{mondayUTC.In(ny), []string{"1"}, false},
+	{mondayUTC.In(ny), []string{"JAN"}, false},
+	{mondayUTC.In(ny), []string{"2018"}, false},
+	{mondayUTC.In(ny), []string{"1", "GMT"}, true},
+	{mondayUTC.In(ny), []string{"JAN", "GMT"}, true},
+	{mondayUTC.In(ny), []string{"2018", "GMT"}, true},
+	{mondayUTC.In(ny), []string{"31"}, true},
+	{mondayUTC.In(ny), []string{"DEC"}, true},
+	{mondayUTC.In(ny), []string{"2017"}, true},
+	{wednesdayUTC, []string{"3"}, true},
+	{wednesdayUTC, []string{"3", "JAN"}, true},
+	{wednesdayUTC, []string{"JAN", "3"}, true},
+	{wednesdayUTC, []string{"JAN", "2018"}, true},
+	{wednesdayUTC, []string{"2018", "JAN"}, true},
+	{wednesdayUTC, []string{"2018", "JAN", "3"}, true},
+	{wednesdayUTC, []string{"3", "JAN", "2018"}, true},
+	{wednesdayUTC, []string{"JAN", "3", "2018"}, true},
+	{thursdayUTC, []string{"1", "3"}, false},
+	{thursdayUTC, []string{"1", "4"}, true},
+	{thursdayUTC, []string{"4", "31"}, true},
+	{thursdayUTC, []string{"5", "31"}, false},
+	{thursdayUTC, []string{"1", "JAN", "3", "JAN"}, false},
+	{thursdayUTC, []string{"1", "JAN", "4", "JAN"}, true},
+	{thursdayUTC, []string{"4", "JAN", "31", "JAN"}, true},
+	{thursdayUTC, []string{"5", "JAN", "31", "JAN"}, false},
+	{thursdayUTC, []string{"1", "JAN", "2018", "3", "JAN"}, false},
+	{thursdayUTC, []string{"1", "JAN", "2018", "4", "JAN"}, true},
+	{thursdayUTC, []string{"4", "JAN", "2018", "31", "JAN"}, true},
+	{thursdayUTC, []string{"5", "JAN", "2018", "31", "JAN"}, false},
+	{thursdayUTC, []string{"1", "JAN", "2018", "3", "JAN", "2018"}, false},
+	{thursdayUTC, []string{"1", "JAN", "2018", "4", "JAN", "2018"}, true},
+	{thursdayUTC, []string{"4", "JAN", "2018", "31", "JAN", "2018"}, true},
+	{thursdayUTC, []string{"5", "JAN", "2018", "31", "JAN", "2018"}, false},
+	{thursdayUTC, []string{"1", "JAN", "2017", "3", "JAN", "2018"}, false},
+	{thursdayUTC, []string{"1", "JAN", "2017", "4", "JAN", "2018"}, true},
+	{thursdayUTC, []string{"4", "JAN", "2017", "31", "JAN", "2018"}, true},
+	{thursdayUTC, []string{"5", "JAN", "2017", "31", "JAN", "2018"}, true},
+	{thursdayUTC, []string{"1", "JAN", "2017", "3", "JAN", "2016"}, false},
+	{thursdayUTC, []string{"1", "JAN", "2017", "4", "JAN", "2016"}, false},
+	{thursdayUTC, []string{"4", "JAN", "2017", "31", "JAN", "2016"}, false},
+	{thursdayUTC, []string{"5", "JAN", "2017", "31", "JAN", "2016"}, false},
+	{thursdayUTC, []string{"1", "JAN", "2018", "3", "JAN", "2016"}, false},
+	{thursdayUTC, []string{"1", "JAN", "2018", "4", "JAN", "2016"}, false},
+	{thursdayUTC, []string{"4", "JAN", "2018", "31", "JAN", "2016"}, true},
+	{thursdayUTC, []string{"5", "JAN", "2018", "31", "JAN", "2016"}, true},
+	{thursdayUTC, []string{"1", "JAN", "2016", "3", "JAN", "2018"}, false},
+	{thursdayUTC, []string{"1", "JAN", "2016", "4", "JAN", "2018"}, true},
+	{thursdayUTC, []string{"4", "JAN", "2016", "31", "JAN", "2018"}, true},
+	{thursdayUTC, []string{"5", "JAN", "2016", "31", "JAN", "2018"}, true},
 }
 
 func TestDateRange(t *testing.T) {
 	defer func() {
 		DefaultNower = &TimeNower{}
 	}()
-	for _, tt := range dateRangeTests {
+	for i, tt := range dateRangeTests {
 		DefaultNower = &StaticNower{tt.now}
 		result := DateRange(tt.args)
 		if result != tt.result {
-			t.Errorf("Expecting %v to return %v", tt.args, tt.result)
+			t.Errorf("Expecting test %d (%v, %v) to return %v", i, tt.now.Format(time.RFC3339Nano), tt.args, tt.result)
 		}
 	}
 
@@ -225,18 +283,105 @@ var timeRangeTests = []struct {
 	args   []string
 	result bool
 }{
-	{mondayUTC, []string{}, false},
+	{atTime(0, 0, 0), []string{}, false},
+	{atTime(0, 0, 0), []string{"0"}, true},
+	{atTime(0, 0, 0), []string{"0", "1"}, true},
+	{atTime(0, 0, 0).In(ny), []string{"19"}, true},
+	{atTime(0, 0, 0).In(ny), []string{"19", "20"}, true},
+	{atTime(0, 0, 0).In(ny), []string{"19", "GMT"}, false},
+	{atTime(0, 0, 0).In(ny), []string{"19", "20", "GMT"}, false},
+	{atTime(0, 0, 0).In(ny), []string{"0", "GMT"}, true},
+	{atTime(0, 0, 0).In(ny), []string{"0", "1", "GMT"}, true},
+	{atTime(12, 0, 0).Add(-1), []string{"12"}, false},
+	{atTime(12, 0, 0), []string{"12"}, true},
+	{atTime(12, 30, 0), []string{"12"}, true},
+	{atTime(13, 0, 0).Add(-1), []string{"12"}, true},
+	{atTime(13, 0, 0), []string{"12"}, false},
+	{atTime(12, 0, 0).Add(-1), []string{"12", "13"}, false},
+	{atTime(12, 0, 0), []string{"12", "13"}, true},
+	{atTime(12, 30, 0), []string{"12", "13"}, true},
+	{atTime(13, 0, 0).Add(-1), []string{"12", "13"}, true},
+	{atTime(13, 0, 0), []string{"12", "13"}, false},
+	{atTime(12, 0, 0).Add(-1), []string{"13", "12"}, false},
+	{atTime(12, 0, 0), []string{"13", "12"}, true},
+	{atTime(12, 30, 0), []string{"13", "12"}, true},
+	{atTime(13, 0, 0).Add(-1), []string{"13", "12"}, true},
+	{atTime(13, 0, 0), []string{"13", "12"}, false},
+	{atTime(8, 30, 0).Add(-1), []string{"8", "30", "17", "0"}, false},
+	{atTime(8, 30, 0), []string{"8", "30", "17", "0"}, true},
+	{atTime(13, 15, 0), []string{"8", "30", "17", "0"}, true},
+	{atTime(17, 0, 0).Add(-1), []string{"8", "30", "17", "0"}, true},
+	{atTime(17, 0, 0), []string{"8", "30", "17", "0"}, false},
+	{atTime(0, 0, 0).Add(-1), []string{"0", "0", "0", "0", "0", "30"}, false},
+	{atTime(0, 0, 0), []string{"0", "0", "0", "0", "0", "30"}, true},
+	{atTime(0, 0, 15), []string{"0", "0", "0", "0", "0", "30"}, true},
+	{atTime(0, 0, 30).Add(-1), []string{"0", "0", "0", "0", "0", "30"}, true},
+	{atTime(0, 0, 30), []string{"0", "0", "0", "0", "0", "30"}, false},
+	{atTime(0, 0, 0).Add(-1), []string{"0", "0", "30", "0", "0", "0"}, false},
+	{atTime(0, 0, 0), []string{"0", "0", "30", "0", "0", "0"}, true},
+	{atTime(0, 0, 15), []string{"0", "0", "30", "0", "0", "0"}, true},
+	{atTime(0, 0, 30).Add(-1), []string{"0", "0", "30", "0", "0", "0"}, true},
+	{atTime(0, 0, 30), []string{"0", "0", "30", "0", "0", "0"}, false},
+	{atTime(0, 0, 15).In(ny), []string{"0", "0", "0", "0", "0", "30"}, false},
+	{atTime(0, 0, 15).In(ny), []string{"0", "0", "0", "0", "0", "30", "GMT"}, true},
+	{atTime(0, 0, 0), []string{"0"}, true},
+	{atTime(0, 0, 0), []string{"x"}, false},
+	{atTime(0, 0, 0), []string{"0", "1"}, true},
+	{atTime(0, 0, 0), []string{"x", "0"}, false},
+	{atTime(0, 0, 0), []string{"0", "x"}, false},
+	{atTime(0, 0, 0), []string{"0", "0", "0", "1", "1", "1"}, true},
+	{atTime(0, 0, 0), []string{"x", "0", "0", "1", "1", "1"}, false},
+	{atTime(0, 0, 0), []string{"0", "x", "0", "1", "1", "1"}, false},
+	{atTime(0, 0, 0), []string{"0", "0", "x", "1", "1", "1"}, false},
+	{atTime(0, 0, 0), []string{"0", "0", "0", "x", "1", "1"}, false},
+	{atTime(0, 0, 0), []string{"0", "0", "0", "1", "x", "1"}, false},
+	{atTime(0, 0, 0), []string{"0", "0", "0", "1", "1", "x"}, false},
+	{atTime(1, 2, 3), []string{"1"}, true},
+	{atTime(1, 2, 3), []string{"1", "2"}, true},
+	{atTime(1, 2, 3), []string{"1", "2", "3"}, false},
+	{atTime(1, 2, 3), []string{"1", "2", "3", "4"}, true},
+	{atTime(1, 2, 3), []string{"1", "2", "3", "4", "5"}, false},
+	{atTime(1, 2, 3), []string{"1", "2", "3", "4", "5", "6"}, true},
+	{atTime(1, 2, 3), []string{"1", "2", "3", "4", "5", "6", "7"}, false},
+	{atNYTime(1, 2, 3), []string{"1", "2"}, true},
+	{atNYTime(1, 2, 3), []string{"1", "2", "3"}, false},
+	{atNYTime(1, 2, 3), []string{"1", "2", "3", "4"}, true},
+	{atNYTime(1, 2, 3), []string{"1", "2", "3", "4", "5"}, false},
+	{atNYTime(1, 2, 3), []string{"1", "2", "3", "4", "5", "6"}, true},
+	{atNYTime(1, 2, 3), []string{"1", "2", "3", "4", "5", "6", "7"}, false},
+	{atTime(1, 2, 3), []string{"1", "GMT"}, true},
+	{atTime(1, 2, 3), []string{"1", "2", "GMT"}, true},
+	{atTime(1, 2, 3), []string{"1", "2", "3", "GMT"}, false},
+	{atTime(1, 2, 3), []string{"1", "2", "3", "4", "GMT"}, true},
+	{atTime(1, 2, 3), []string{"1", "2", "3", "4", "5", "GMT"}, false},
+	{atTime(1, 2, 3), []string{"1", "2", "3", "4", "5", "6", "GMT"}, true},
+	{atTime(1, 2, 3), []string{"1", "2", "3", "4", "5", "6", "7", "GMT"}, false},
+	{atTime(1, 2, 3).In(ny), []string{"1", "GMT"}, true},
+	{atTime(1, 2, 3).In(ny), []string{"1", "2", "GMT"}, true},
+	{atTime(1, 2, 3).In(ny), []string{"1", "2", "3", "GMT"}, false},
+	{atTime(1, 2, 3).In(ny), []string{"1", "2", "3", "4", "GMT"}, true},
+	{atTime(1, 2, 3).In(ny), []string{"1", "2", "3", "4", "5", "GMT"}, false},
+	{atTime(1, 2, 3).In(ny), []string{"1", "2", "3", "4", "5", "6", "GMT"}, true},
+	{atTime(1, 2, 3).In(ny), []string{"1", "2", "3", "4", "5", "6", "7", "GMT"}, false},
+}
+
+func atTime(h, m, s int) time.Time {
+	return time.Date(2018, 1, 1, h, m, s, 0, time.UTC)
+}
+
+func atNYTime(h, m, s int) time.Time {
+	return time.Date(2018, 1, 1, h, m, s, 0, ny)
 }
 
 func TestTimeRange(t *testing.T) {
 	defer func() {
 		DefaultNower = &TimeNower{}
 	}()
-	for _, tt := range timeRangeTests {
+	for i, tt := range timeRangeTests {
 		DefaultNower = &StaticNower{tt.now}
-		result := DateRange(tt.args)
+		result := TimeRange(tt.args)
 		if result != tt.result {
-			t.Errorf("Expecting %v to return %v", tt.args, tt.result)
+			t.Errorf("Expecting test %d (%v, %v) to return %v", i, tt.now.Format(time.RFC3339Nano), tt.args, tt.result)
 		}
 	}
 }

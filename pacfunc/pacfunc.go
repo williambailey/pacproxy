@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -13,7 +14,7 @@ var (
 	// DefaultNower thats used by these functions to get the currant time
 	DefaultNower Nower
 
-	dayMap = map[string]time.Weekday{
+	weekday = map[string]time.Weekday{
 		"SUN": time.Sunday,
 		"MON": time.Monday,
 		"TUE": time.Tuesday,
@@ -21,6 +22,20 @@ var (
 		"THU": time.Thursday,
 		"FRI": time.Friday,
 		"SAT": time.Saturday,
+	}
+	month = map[string]time.Month{
+		"JAN": time.January,
+		"FEB": time.February,
+		"MAR": time.March,
+		"APR": time.April,
+		"MAY": time.May,
+		"JUN": time.June,
+		"JUL": time.July,
+		"AUG": time.August,
+		"SEP": time.September,
+		"OCT": time.October,
+		"NOV": time.November,
+		"DEC": time.December,
 	}
 )
 
@@ -189,10 +204,10 @@ func WeekdayRange(wd1, wd2, gmt string) bool {
 		weekday1 time.Weekday
 		weekday2 time.Weekday
 	)
-	if weekday1, ok = dayMap[wd1]; !ok {
+	if weekday1, ok = weekday[wd1]; !ok {
 		return false
 	}
-	if weekday2, ok = dayMap[wd2]; !ok {
+	if weekday2, ok = weekday[wd2]; !ok {
 		return false
 	}
 	if weekday1 == weekday2 && weekday1 == today {
@@ -208,14 +223,246 @@ func WeekdayRange(wd1, wd2, gmt string) bool {
 //
 // (<day1>, <month1>, <year1>, <day2>, <month2>, <year2>, <gmt>)
 func DateRange(args []string) bool {
-	panic("DateRance is not yet implemented")
-	return false
+	getMonth := func(name string) time.Month {
+		month, _ := month[name]
+		return month
+	}
+	argc := len(args)
+	if argc < 1 {
+		return false
+	}
+	for k, v := range args {
+		args[k] = strings.ToUpper(v)
+	}
+	now := DefaultNower.Now()
+	isGMT := args[argc-1] == "GMT"
+	if isGMT {
+		argc--
+		now = now.UTC()
+	}
+	if argc == 1 {
+		tmp, err := strconv.Atoi(args[0])
+		if err != nil {
+			return now.Month() == getMonth(args[0])
+		} else if tmp <= 31 {
+			return now.Day() == tmp
+		} else {
+			return now.Year() == tmp
+		}
+	}
+	date1 := now
+	for i := 0; i < argc/2; i++ {
+		tmp, err := strconv.Atoi(args[i])
+		if err != nil {
+			m := getMonth(args[i])
+			if m == 0 {
+				return false
+			}
+			date1 = time.Date(
+				date1.Year(),
+				m,
+				date1.Day(),
+				date1.Hour(),
+				date1.Minute(),
+				date1.Second(),
+				date1.Nanosecond(),
+				date1.Location(),
+			)
+		} else if tmp <= 31 {
+			date1 = time.Date(
+				date1.Year(),
+				date1.Month(),
+				tmp,
+				date1.Hour(),
+				date1.Minute(),
+				date1.Second(),
+				date1.Nanosecond(),
+				date1.Location(),
+			)
+		} else {
+			date1 = time.Date(
+				tmp,
+				date1.Month(),
+				date1.Day(),
+				date1.Hour(),
+				date1.Minute(),
+				date1.Second(),
+				date1.Nanosecond(),
+				date1.Location(),
+			)
+		}
+	}
+	date2 := now
+	for i := argc / 2; i < argc; i++ {
+		tmp, err := strconv.Atoi(args[i])
+		if err != nil {
+			m := getMonth(args[i])
+			if m == 0 {
+				return false
+			}
+			date2 = time.Date(
+				date2.Year(),
+				m,
+				date2.Day(),
+				date2.Hour(),
+				date2.Minute(),
+				date2.Second(),
+				date2.Nanosecond(),
+				date2.Location(),
+			)
+		} else if tmp <= 31 {
+			date2 = time.Date(
+				date2.Year(),
+				date2.Month(),
+				tmp,
+				date2.Hour(),
+				date2.Minute(),
+				date2.Second(),
+				date2.Nanosecond(),
+				date2.Location(),
+			)
+		} else {
+			date2 = time.Date(
+				tmp,
+				date2.Month(),
+				date2.Day(),
+				date2.Hour(),
+				date2.Minute(),
+				date2.Second(),
+				date2.Nanosecond(),
+				date2.Location(),
+			)
+		}
+	}
+	var (
+		nano  = now.UnixNano()
+		nano1 = date1.UnixNano()
+		nano2 = date2.UnixNano()
+	)
+	if nano2 < nano1 {
+		nano1, nano2 = nano2, nano1
+	}
+	return nano1 <= nano && nano <= nano2
 }
 
 // TimeRange return true during (or between) the specified time(s).
 //
 // (<hour1>, <min1>, <sec1>, <hour2>, <min2>, <sec2>, <gmt>)
 func TimeRange(args []string) bool {
-	panic("TimeRance is not yet implemented")
-	return false
+	argc := len(args)
+	if argc < 1 {
+		return false
+	}
+	for k, v := range args {
+		args[k] = strings.ToUpper(v)
+	}
+	now := DefaultNower.Now()
+	isGMT := args[argc-1] == "GMT"
+	if isGMT {
+		argc--
+		now = now.UTC()
+	}
+	date1 := now
+	date2 := now
+	switch argc {
+	case 1:
+		tmp, err := strconv.Atoi(args[0])
+		if err != nil {
+			return false
+		}
+		return now.Hour() == tmp
+	case 2:
+		tmp1, err := strconv.Atoi(args[0])
+		if err != nil {
+			return false
+		}
+		tmp2, err := strconv.Atoi(args[1])
+		if err != nil {
+			return false
+		}
+		if tmp2 < tmp1 {
+			tmp1, tmp2 = tmp2, tmp1
+		}
+		return tmp1 <= now.Hour() && now.Hour() < tmp2
+	case 6:
+		s1, err := strconv.Atoi(args[2])
+		if err != nil {
+			return false
+		}
+		s2, err := strconv.Atoi(args[5])
+		if err != nil {
+			return false
+		}
+		date1 = time.Date(
+			date1.Year(),
+			date1.Month(),
+			date1.Day(),
+			date1.Hour(),
+			date1.Minute(),
+			s1,
+			date1.Nanosecond(),
+			date1.Location(),
+		)
+		date2 = time.Date(
+			date2.Year(),
+			date2.Month(),
+			date2.Day(),
+			date2.Hour(),
+			date2.Minute(),
+			s2,
+			date2.Nanosecond(),
+			date2.Location(),
+		)
+		fallthrough
+	case 4:
+		middle := argc / 2
+		h1, err := strconv.Atoi(args[0])
+		if err != nil {
+			return false
+		}
+		m1, err := strconv.Atoi(args[1])
+		if err != nil {
+			return false
+		}
+		h2, err := strconv.Atoi(args[middle])
+		if err != nil {
+			return false
+		}
+		m2, err := strconv.Atoi(args[middle+1])
+		if err != nil {
+			return false
+		}
+		date1 = time.Date(
+			date1.Year(),
+			date1.Month(),
+			date1.Day(),
+			h1,
+			m1,
+			date1.Second(),
+			date1.Nanosecond(),
+			date1.Location(),
+		)
+		date2 = time.Date(
+			date2.Year(),
+			date2.Month(),
+			date2.Day(),
+			h2,
+			m2,
+			date2.Second(),
+			date2.Nanosecond(),
+			date2.Location(),
+		)
+		break
+	default:
+		return false
+	}
+	var (
+		nano  = now.UnixNano()
+		nano1 = date1.UnixNano()
+		nano2 = date2.UnixNano()
+	)
+	if nano2 < nano1 {
+		nano1, nano2 = nano2, nano1
+	}
+	return (nano1 <= nano) && (nano < nano2)
 }
