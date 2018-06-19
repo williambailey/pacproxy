@@ -3,7 +3,7 @@ pacproxy
 
 [![Build Status](https://travis-ci.org/williambailey/pacproxy.svg)](https://travis-ci.org/williambailey/pacproxy)
 
-A no-frills local HTTP proxy server powered by a [proxy auto-config (PAC) file](https://web.archive.org/web/20070602031929/http://wp.netscape.com/eng/mozilla/2.0/relnotes/demo/proxy-live.html). Especially handy when you are working in an environment with many different proxy servers and your applications don't support proxy auto-configuration.
+A no-frills local HTTP and SOCKS5 proxy server powered by a [proxy auto-config (PAC) file](https://web.archive.org/web/20070602031929/http://wp.netscape.com/eng/mozilla/2.0/relnotes/demo/proxy-live.html). Especially handy when you are working in an environment with many different proxy servers and your applications don't support proxy auto-configuration.
 
 ```
 $ ./pacproxy -h
@@ -12,6 +12,8 @@ Usage of ./bin/pacproxy:
     	PAC file name, url, or javascript to use
   -l string
     	Interface and port to listen on (default "127.0.0.1:8080")
+  -s string
+        Interface and port to listen on of socks5 proxy (default "127.0.0.1:1080")
   -v	send verbose output to STDERR
 ```
 
