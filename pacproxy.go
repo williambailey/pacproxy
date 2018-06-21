@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/williambailey/pacproxy/pac"
+	"github.com/shakirshakiel/pacproxy/pac"
 )
 
 // Name of the app

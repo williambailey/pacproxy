@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/williambailey/pacproxy/pac"
+	"github.com/shakirshakiel/pacproxy/pac"
 )
 
 type proxyHTTPHandler struct {

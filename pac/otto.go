@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/robertkrimen/otto"
-	"github.com/williambailey/pacproxy/pacfunc"
+	"github.com/shakirshakiel/pacproxy/pacfunc"
 )
 
 // OttoEngineOpt used to configure an OttoEngine via the NewOttoEngine func
