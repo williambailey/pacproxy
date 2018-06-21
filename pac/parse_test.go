@@ -14,6 +14,7 @@ var parsetests = []struct {
 	{"DIRECT", []Proxy{DirectProxy}, nil},
 	{"PROXY proxy.example.com:8080", []Proxy{Proxy{"proxy.example.com", 8080}}, nil},
 	{"PROXY proxy.example.com:8080; DIRECT", []Proxy{Proxy{"proxy.example.com", 8080}, DirectProxy}, nil},
+	{"PROXY proxy.example.com:8080; PROXY proxy.example.org:8888;", []Proxy{Proxy{"proxy.example.com", 8080}, Proxy{"proxy.example.org", 8888}}, nil},
 	{"PROXY proxy.example.com:8080; DIRECT; PROXY proxy.example.org:8888", []Proxy{Proxy{"proxy.example.com", 8080}, DirectProxy, Proxy{"proxy.example.org", 8888}}, nil},
 	{"FOO", []Proxy{}, errors.New("unsupported PAC command \"FOO\"")},
 	{"PROXY", []Proxy{}, errors.New("unable to parse proxy details from \"PROXY\"")},
