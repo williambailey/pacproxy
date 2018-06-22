@@ -15,7 +15,7 @@ func newNonProxyHTTPHandler() http.Handler {
 		}
 		http.Error(
 			w,
-			fmt.Sprintf("%s %s\nhttps://github.com/williambailey/pacproxy", Name, Version),
+			fmt.Sprintf("%s %s\nhttps://github.com/shakirshakiel/pacproxy", Name, Version),
 			http.StatusBadGateway,
 		)
 	})

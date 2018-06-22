@@ -2,7 +2,7 @@
 
 package main
 
-import "github.com/williambailey/pacproxy/pac"
+import "github.com/shakirshakiel/pacproxy/pac"
 
 func initSignalNotify(_ pac.EngineManager) {
 }

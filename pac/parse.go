@@ -30,7 +30,7 @@ func ParseFindProxyString(s string) (Proxies, error) {
 		portInt  int
 		portErr  error
 	)
-	for _, statement := range pacStatementSplit.Split(s, 50) {
+	for _, statement := range FixedStatement(s) {
 		part := pacItemSplit.Split(statement, 2)
 		switch strings.ToUpper(part[0]) {
 		case "DIRECT":
@@ -61,4 +61,15 @@ func ParseFindProxyString(s string) (Proxies, error) {
 		}
 	}
 	return proxies, nil
+}
+
+func FixedStatement(s string) []string {
+	result := make([]string, 0)
+	statements := pacStatementSplit.Split(s, 50)
+	for _, statement := range statements {
+		if(statement != "") {
+			result = append(result, statement)
+		}
+	}
+	return result
 }

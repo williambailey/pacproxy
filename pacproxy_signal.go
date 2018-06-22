@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/williambailey/pacproxy/pac"
+	"github.com/shakirshakiel/pacproxy/pac"
 )
 
 func initSignalNotify(pac pac.EngineManager) {
