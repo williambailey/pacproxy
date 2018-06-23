@@ -15,7 +15,7 @@ import (
 const Name = "pacproxy"
 
 // Version of the app
-const Version = "2.0.0"
+const Version = "2.0.1"
 
 var (
 	fPac     string
