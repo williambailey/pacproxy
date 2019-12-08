@@ -2,12 +2,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
-	"fmt"
 
 	"github.com/williambailey/pacproxy/pac"
 )
@@ -31,18 +32,20 @@ func init() {
 }
 
 func main() {
-	required := []string{"c"}
-      	flag.Parse()
-	
+	flag.Parse()
+
 	seen := make(map[string]bool)
 	flag.Visit(func(f *flag.Flag) { seen[f.Name] = true })
-        for _, req := range required {
-	    if !seen[req] {
-	        fmt.Fprintf(os.Stderr, "missing required -%s argument/flag\n", req)
-	        os.Exit(2) // the same exit code flag.Parse uses
-	    }
-        }
-	
+	required := []string{"c"}
+	for _, req := range required {
+		if !seen[req] {
+			exitWithUsage(fmt.Sprintf("Missing required flag -%s", req))
+		}
+	}
+	if strings.TrimSpace(fPac) == "" {
+		exitWithUsage("Unexpected empty value for -c")
+	}
+
 	if fVerbose {
 		log.SetOutput(os.Stderr)
 	} else {
@@ -76,4 +79,11 @@ func main() {
 	if err := srv.ListenAndServe(); err != nil {
 		log.Panic(err)
 	}
+}
+
+func exitWithUsage(message string) {
+	os.Stderr.WriteString(message)
+	os.Stderr.WriteString("\n")
+	flag.Usage()
+	os.Exit(2) // the same exit code flag.Parse uses
 }
