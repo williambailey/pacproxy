@@ -67,7 +67,7 @@ ab: build
 	./bin/pacproxy -v -c "function FindProxyForURL(url, host){ return 'PROXY 127.0.0.1:8082'; }" -l 127.0.0.1:8083 2>proxy.8083.log &
 	ps auxww | grep "./bin/pacproxy"
 	sleep 2
-	ab -X 127.0.0.1:8083 -k -c 20 -n 30000 "http://127.0.0.1:8080/favicon.ico"
+	ab -X 127.0.0.1:8083 -k -c 100 -n 30000 "http://127.0.0.1:8080/favicon.ico"
 	killall pacproxy
 
 .PHONY: all build test xcompile package clean favicon ab
