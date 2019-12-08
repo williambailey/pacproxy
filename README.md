@@ -9,10 +9,10 @@ A no-frills local HTTP proxy server powered by a [proxy auto-config (PAC) file](
 $ ./pacproxy -h
 Usage of ./bin/pacproxy:
   -c string
-    	PAC file name, url, or javascript to use
+        PAC file name, url or javascript to use (required)
   -l string
-    	Interface and port to listen on (default "127.0.0.1:8080")
-  -v	send verbose output to STDERR
+        Interface and port to listen on (default "127.0.0.1:8080")
+  -v    send verbose output to STDERR
 ```
 
 ```bash
