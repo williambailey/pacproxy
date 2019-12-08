@@ -1,0 +1,4 @@
+github.com/robertkrimen/otto v0.0.0-20171130103205-3b44b4dcb6c0 h1:5RhOP2qFOTBwBzvlMm3ehEbaJaq32CH9pXfTMcvzV3s=
+github.com/robertkrimen/otto v0.0.0-20171130103205-3b44b4dcb6c0/go.mod h1:xvqspoSXJTIpemEonrMDFq6XzwHYYgToXWj5eRX1OtY=
+gopkg.in/sourcemap.v1 v1.0.5 h1:inv58fC9f9J3TK2Y2R1NPntXEn3/wjWHkonhIUODNTI=
+gopkg.in/sourcemap.v1 v1.0.5/go.mod h1:2RlvNNSMglmRrcvhfuzp4hQHwOtjxlbjX7UPY/GXb78=
