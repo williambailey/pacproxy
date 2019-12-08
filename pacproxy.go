@@ -19,6 +19,12 @@ const Name = "pacproxy"
 // Version of the app
 const Version = "2.0.2"
 
+// About the app
+const About = "A no-frills local HTTP proxy server powered by a proxy auto-config (PAC) file"
+
+// Repo where the app is located
+const Repo = "https://github.com/williambailey/pacproxy"
+
 var (
 	fPac     string
 	fListen  string
@@ -32,6 +38,11 @@ func init() {
 }
 
 func main() {
+	flag.Usage = func() {
+		// fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "%s v%s\n\n%s\n%s\n\nUsage:\n", Name, Version, About, Repo)
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 
 	seen := make(map[string]bool)
