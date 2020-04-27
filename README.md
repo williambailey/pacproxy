@@ -31,7 +31,7 @@ curl -I "http://www.example.com"
 
 ## License
 
-> Copyright 2019 William Bailey
+> Copyright 2020 William Bailey
 >
 > Licensed under the Apache License, Version 2.0 (the "License");
 > you may not use this file except in compliance with the License.
