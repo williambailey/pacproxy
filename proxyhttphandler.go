@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/williambailey/pacproxy/pac"
@@ -145,8 +146,19 @@ func (h *proxyHTTPHandler) doConnectProxy(w http.ResponseWriter, r *http.Request
 	if proxyURL == nil {
 		clientConn.Write([]byte("HTTP/1.0 200 OK\r\n\r\n"))
 	}
-	go io.Copy(clientConn, serverConn)
-	io.Copy(serverConn, clientConn)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		io.Copy(clientConn, serverConn)
+		clientConn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		io.Copy(serverConn, clientConn)
+	}()
+	wg.Wait()
 }
 
 func (h *proxyHTTPHandler) doHTTPProxy(w http.ResponseWriter, r *http.Request) {
