@@ -51,7 +51,8 @@ func newProxyHTTPHandler(
 		httpClient: &http.Client{
 			Transport: transport,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return errors.New("Don't follow redirects")
+				// Don't follow redirects, but do return their contents.
+				return http.ErrUseLastResponse
 			},
 			Jar: nil,
 		},
