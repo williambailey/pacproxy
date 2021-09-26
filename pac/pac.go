@@ -54,8 +54,15 @@ type ProxyChecker interface {
 }
 */
 
+const (
+	ProxySchemeHttp   = "http"
+	ProxySchemeHttps  = "https"
+	ProxySchemeSocks5 = "socks5"
+)
+
 // Proxy information struct
 type Proxy struct {
+	Scheme   string
 	Hostname string
 	Port     int
 }
@@ -64,7 +71,7 @@ func (p Proxy) String() string {
 	if p == DirectProxy {
 		return "DIRECT"
 	}
-	return fmt.Sprintf("PROXY %s:%d", p.Hostname, p.Port)
+	return fmt.Sprintf("%s %s:%d", p.Scheme, p.Hostname, p.Port)
 }
 
 // DirectProxy is used to represent a "DIRECT" value

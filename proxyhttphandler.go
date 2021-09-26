@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/txthinking/socks5"
 	"github.com/williambailey/pacproxy/pac"
 )
 
@@ -86,7 +87,8 @@ func (h *proxyHTTPHandler) lookupProxy(r *http.Request) (*url.URL, error) {
 		return nil, nil
 	}
 	proxyURL := &url.URL{
-		Host: fmt.Sprintf("%s:%d", proxy.Hostname, proxy.Port),
+		Scheme: proxy.Scheme,
+		Host:   fmt.Sprintf("%s:%d", proxy.Hostname, proxy.Port),
 	}
 	if proxyAuth := r.Header.Get("Proxy-Authorization"); proxyAuth != "" {
 		if u, p, ok := parseBasicAuth(proxyAuth); ok {
@@ -118,7 +120,7 @@ func (h *proxyHTTPHandler) doConnectProxy(w http.ResponseWriter, r *http.Request
 			return
 		}
 		defer serverConn.Close()
-	} else {
+	} else if proxyURL.Scheme == pac.ProxySchemeHttp {
 		serverConn, err = h.dialer.Dial("tcp", proxyURL.Hostname()+":"+proxyURL.Port())
 		if err != nil {
 			log.Printf("HTTP Connect Proxy %q: %d %s", r.URL, http.StatusBadGateway, err)
@@ -129,6 +131,14 @@ func (h *proxyHTTPHandler) doConnectProxy(w http.ResponseWriter, r *http.Request
 		removeProxyHeaders(r)
 		//r.WriteProxy(serverConn)
 		r.Write(serverConn) // instead of WriteProxy as this will *hopefully* deal with CONNECT correctly.
+	} else if proxyURL.Scheme == pac.ProxySchemeSocks5 {
+		c, _ := socks5.NewClient(proxyURL.Hostname()+":"+proxyURL.Port(), "", "", 0, 0)
+		serverConn, err = c.Dial("tcp", r.URL.Host)
+		if err != nil {
+			log.Printf("socks5 dial fail:%s", err.Error())
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
 	}
 	hj, ok := w.(http.Hijacker)
 	if !ok {
@@ -144,20 +154,39 @@ func (h *proxyHTTPHandler) doConnectProxy(w http.ResponseWriter, r *http.Request
 		return
 	}
 	defer clientConn.Close()
-	if proxyURL == nil {
+	if proxyURL == nil || proxyURL.Scheme != pac.ProxySchemeHttp {
 		clientConn.Write([]byte("HTTP/1.0 200 OK\r\n\r\n"))
 	}
 	var wg sync.WaitGroup
+	var closeOnce sync.Once
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		io.Copy(clientConn, serverConn)
-		clientConn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+		n, err := io.Copy(clientConn, serverConn)
+		if err != nil {
+			log.Printf("%s iocopy from server to client fail:%s", r.URL.Hostname(), err.Error())
+		} else {
+			log.Printf("%s iocopy from server to client done: %d", r.URL.Hostname(), n)
+		}
+		closeOnce.Do(func() {
+			clientConn.Close()
+			serverConn.Close()
+		})
+		clientConn.SetDeadline(time.Now().Add(100 * time.Microsecond))
 	}()
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		io.Copy(serverConn, clientConn)
+		n, err := io.Copy(serverConn, clientConn)
+		if err != nil {
+			log.Printf("%s iocopy from client to server fail: %d %s", r.URL.Hostname(), n, err.Error())
+		} else {
+			log.Printf("%s iocopy from client to server done: %d", r.URL.Hostname(), n)
+		}
+		closeOnce.Do(func() {
+			clientConn.Close()
+			serverConn.Close()
+		})
 	}()
 	wg.Wait()
 }
