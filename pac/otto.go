@@ -34,7 +34,6 @@ func NewOttoEngine(opts ...OttoEngineOpt) *OttoEngine {
 		loader: func() (string, error) {
 			return "", errors.New("pac loader has not been configured")
 		},
-		cache: make(map[string]Proxies),
 	}
 	for _, opt := range opts {
 		opt(otto)
@@ -72,6 +71,8 @@ func (o *OttoEngine) Start() error {
 	if o.isStarted {
 		return nil
 	}
+	// Init the cache when start, so the cache will be invalided when reload.
+	o.cache = make(map[string]Proxies)
 	log.Print("initialising OttoEngine")
 	vm := otto.New()
 
@@ -376,7 +377,7 @@ func (o *OttoEngine) FindProxyForURL(in *url.URL) (Proxies, error) {
 
 	r, err := ParseFindProxyString(findProxyString)
 	if err != nil {
-		return Proxies{}, nil
+		return Proxies{}, err
 	}
 	o.cache[in.Hostname()] = r
 	return r, nil
