@@ -7,7 +7,7 @@ A no-frills local HTTP proxy server powered by a [proxy auto-config (PAC) file](
 
 ```
 $ ./pacproxy -h
-pacproxy v2.0.5
+pacproxy v2.0.6
 
 A no-frills local HTTP proxy server powered by a proxy auto-config (PAC) file
 https://github.com/williambailey/pacproxy
