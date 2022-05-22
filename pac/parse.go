@@ -29,8 +29,10 @@ func ParseFindProxyString(s string) (Proxies, error) {
 		portStr  string
 		portInt  int
 		portErr  error
+		scheme   string
 	)
 	for _, statement := range pacStatementSplit.Split(s, 50) {
+		scheme = ""
 		if statement == "" {
 			continue
 		}
@@ -39,10 +41,18 @@ func ParseFindProxyString(s string) (Proxies, error) {
 		case "DIRECT":
 			proxies = append(proxies, DirectProxy)
 		case "PROXY":
+			scheme = ProxySchemeHttp
+		case "SOCKS5":
+			scheme = ProxySchemeSocks5
+		default:
+			return Proxies{}, fmt.Errorf("unsupported PAC command %q", part[0])
+		}
+
+		if scheme != "" {
 			if len(part) != 2 {
 				return Proxies{}, fmt.Errorf("unable to parse proxy details from %q", statement)
 			}
-			url, urlErr = url.Parse("http://" + part[1])
+			url, urlErr = url.Parse(scheme + "://" + part[1])
 			if urlErr != nil {
 				return Proxies{}, urlErr
 			}
@@ -56,11 +66,10 @@ func ParseFindProxyString(s string) (Proxies, error) {
 				return Proxies{}, portErr
 			}
 			proxies = append(proxies, Proxy{
+				Scheme:   scheme,
 				Hostname: url.Hostname(),
 				Port:     portInt,
 			})
-		default:
-			return Proxies{}, fmt.Errorf("unsupported PAC command %q", part[0])
 		}
 	}
 	return proxies, nil
