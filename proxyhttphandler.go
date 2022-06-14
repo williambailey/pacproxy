@@ -76,12 +76,24 @@ func (h *proxyHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *proxyHTTPHandler) lookupProxy(r *http.Request) (*url.URL, error) {
-	proxies, err := h.proxyFinder.FindProxyForURL(r.URL)
+	sourceURL := &url.URL{
+		Scheme:      fScheme,
+		Opaque:      r.URL.Opaque,
+		User:        r.URL.User,
+		Host:        r.URL.Host,
+		Path:        r.URL.Path,
+		RawPath:     r.URL.RawPath,
+		ForceQuery:  r.URL.ForceQuery,
+		RawQuery:    r.URL.RawQuery,
+		Fragment:    r.URL.Fragment,
+		RawFragment: r.URL.RawFragment,
+	}
+	proxies, err := h.proxyFinder.FindProxyForURL(sourceURL)
 	if err != nil {
 		return nil, err
 	}
 	proxy := h.proxySelector.SelectProxy(proxies)
-	log.Printf("Proxy Lookup %q, got %q. Selected %q", r.URL, proxies, proxy)
+	log.Printf("Proxy Lookup %q, got %q. Selected %q", sourceURL, proxies, proxy)
 	if proxy == pac.DirectProxy {
 		return nil, nil
 	}
