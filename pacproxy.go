@@ -28,12 +28,14 @@ const Repo = "https://github.com/williambailey/pacproxy"
 var (
 	fPac     string
 	fListen  string
+	fScheme  string
 	fVerbose bool
 )
 
 func init() {
 	flag.StringVar(&fPac, "c", "", "PAC file name, url or javascript to use (required)")
 	flag.StringVar(&fListen, "l", "127.0.0.1:8080", "Interface and port to listen on")
+	flag.StringVar(&fScheme, "s", "", "Scheme to use for the URL passed to FindProxyForURL")
 	flag.BoolVar(&fVerbose, "v", false, "send verbose output to STDERR")
 }
 

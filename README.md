@@ -17,16 +17,21 @@ Usage:
         PAC file name, url or javascript to use (required)
   -l string
         Interface and port to listen on (default "127.0.0.1:8080")
+  -s string
+        Scheme to use for the URL passed to FindProxyForURL
   -v    send verbose output to STDERR
 ```
 
 ```bash
 # shell 1
-pacproxy -c 'function FindProxyForURL(url, host){ console.log("hello pac world!"); return "PROXY random.example.com:8080"; }'
+pacproxy -l 127.0.0.1:8080 -s http -c 'function FindProxyForURL(url, host){ console.log("hello pac world!"); return "PROXY random.example.com:8080"; }'
 # shell 2
+pacproxy -l 127.0.0.1:8443 -s https -c 'function FindProxyForURL(url, host){ console.log("hello pac world!"); return "PROXY random.example.com:8080"; }'
+# shell 3
 export http_proxy="127.0.0.1:8080"
-export https_proxy="127.0.0.1:8080"
+export https_proxy="127.0.0.1:8443"
 curl -I "http://www.example.com"
+curl -I "https://www.example.com"
 ```
 
 ## License
