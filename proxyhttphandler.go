@@ -158,6 +158,7 @@ func (h *proxyHTTPHandler) doConnectProxy(w http.ResponseWriter, r *http.Request
 	go func() {
 		defer wg.Done()
 		io.Copy(serverConn, clientConn)
+		serverConn.SetDeadline(time.Now().Add(10 * time.Millisecond))
 	}()
 	wg.Wait()
 }
