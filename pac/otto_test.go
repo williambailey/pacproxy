@@ -128,7 +128,7 @@ func TestOttoWithFindProxyForURLFunctionThatReturnsMultipleValues(t *testing.T) 
 		t,
 		"function FindProxyForURL(url, host){ return 'PROXY proxy.example.com:8080; DIRECT'; }",
 		"http://www.example.com/page.html",
-		[]Proxy{Proxy{"proxy.example.com", 8080}, DirectProxy},
+		[]Proxy{Proxy{Hostname: "proxy.example.com", Port: 8080}, DirectProxy},
 		"",
 	)
 }

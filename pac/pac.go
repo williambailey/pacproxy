@@ -58,11 +58,15 @@ type ProxyChecker interface {
 type Proxy struct {
 	Hostname string
 	Port     int
+	TLS      bool
 }
 
 func (p Proxy) String() string {
 	if p == DirectProxy {
 		return "DIRECT"
+	}
+	if p.TLS {
+		return fmt.Sprintf("HTTPS %s:%d", p.Hostname, p.Port)
 	}
 	return fmt.Sprintf("PROXY %s:%d", p.Hostname, p.Port)
 }

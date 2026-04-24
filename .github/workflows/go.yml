@@ -1,0 +1,130 @@
+name: Go
+
+on:
+  push:
+    branches: [ "*" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "*" ]
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            echo "Files not gofmt'd:"
+            echo "$out"
+            exit 1
+          fi
+      - name: go vet
+        run: go vet ./...
+      - name: staticcheck
+        uses: dominikh/staticcheck-action@v1
+        with:
+          version: latest
+          install-go: false
+
+  test:
+    name: Test
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build
+        run: go build -v ./...
+      - name: Test
+        run: go test -race -v ./...
+
+  build:
+    name: Build Linux
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build release
+        env:
+          CGO_ENABLED: 0
+        run: |
+          go build -ldflags="-s -w" -trimpath -o pacproxy .
+      - name: Set version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+      - name: Create tarball
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: tar -czvf pacproxy-${{ env.VERSION }}-linux-x86_64.tar.gz pacproxy
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: pacproxy-linux
+          path: pacproxy
+      - name: Upload tarball artifact
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v6
+        with:
+          name: pacproxy-linux-tarball
+          path: pacproxy-${{ env.VERSION }}-linux-x86_64.tar.gz
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Get version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+      - name: Download Linux binary
+        uses: actions/download-artifact@v7
+        with:
+          name: pacproxy-linux
+          path: ./
+      - name: Download Linux tarball
+        uses: actions/download-artifact@v7
+        with:
+          name: pacproxy-linux-tarball
+          path: ./
+      - name: Rename binary
+        run: |
+          chmod +x pacproxy
+          mv pacproxy pacproxy-${{ env.VERSION }}-linux-x86_64
+      - name: Extract changelog
+        run: |
+          if [ -f CHANGELOG.md ]; then
+            CHANGELOG=$(awk "/^## \[${{ env.VERSION }}\]/ {flag=1;next} /^## \[/ {flag=0} flag" CHANGELOG.md | tr -d '\r')
+            if [ -z "$CHANGELOG" ]; then
+              CHANGELOG="Release version ${{ env.VERSION }}"
+            fi
+            echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+            echo "$CHANGELOG" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          else
+            echo "CHANGELOG=Release version ${{ env.VERSION }}" >> $GITHUB_ENV
+          fi
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            pacproxy-${{ env.VERSION }}-linux-x86_64
+            pacproxy-${{ env.VERSION }}-linux-x86_64.tar.gz
+          body: ${{ env.CHANGELOG }}
+          draft: false
+          prerelease: false

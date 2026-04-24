@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -16,22 +18,74 @@ import (
 	"github.com/williambailey/pacproxy/pac"
 )
 
+type upstreamAuth struct {
+	user  string
+	pass  string
+	hosts []string
+}
+
+func (a *upstreamAuth) Header() string {
+	raw := a.user + ":" + a.pass
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(raw))
+}
+
+// shouldApply reports whether the upstream auth credentials should be sent
+// to the given proxy. Entries can be "host" (any port) or "host:port"
+// (exact match). An empty host list means "never send credentials".
+func (a *upstreamAuth) shouldApply(p pac.Proxy) bool {
+	if a == nil || len(a.hosts) == 0 {
+		return false
+	}
+	host := strings.ToLower(p.Hostname)
+	hostPort := fmt.Sprintf("%s:%d", host, p.Port)
+	for _, h := range a.hosts {
+		if h == host || h == hostPort {
+			return true
+		}
+	}
+	return false
+}
+
+// shouldApplyURL is the URL-keyed equivalent of shouldApply, used when we
+// only have the resolved proxy URL on hand (CONNECT path).
+func (a *upstreamAuth) shouldApplyURL(u *url.URL) bool {
+	if a == nil || u == nil || len(a.hosts) == 0 {
+		return false
+	}
+	host := strings.ToLower(u.Hostname())
+	hostPort := strings.ToLower(u.Host)
+	for _, h := range a.hosts {
+		if h == host || h == hostPort {
+			return true
+		}
+	}
+	return false
+}
+
 type proxyHTTPHandler struct {
 	proxyFinder     pac.ProxyFinder
 	proxySelector   pac.ProxySelector
 	httpClient      *http.Client
 	dialer          *net.Dialer
+	resolver        *customResolver
 	nonProxyHandler http.Handler
+	upstreamAuth    *upstreamAuth
 }
 
 func newProxyHTTPHandler(
 	proxyFinder pac.ProxyFinder,
 	proxySelector pac.ProxySelector,
 	nonProxyHandler http.Handler,
+	upstreamAuth *upstreamAuth,
+	resolver *customResolver,
 ) *proxyHTTPHandler {
 	dialer := &net.Dialer{
 		Timeout:   10 * time.Second,
 		KeepAlive: 10 * time.Second,
+	}
+	dialContext := dialer.DialContext
+	if resolver != nil {
+		dialContext = resolver.dialContext(dialer)
 	}
 	transport := &http.Transport{
 		DisableKeepAlives:     false,
@@ -43,7 +97,7 @@ func newProxyHTTPHandler(
 		ExpectContinueTimeout: 1 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 		Proxy:                 nil,
-		DialContext:           dialer.DialContext,
+		DialContext:           dialContext,
 	}
 	handler := &proxyHTTPHandler{
 		proxyFinder:   proxyFinder,
@@ -57,10 +111,27 @@ func newProxyHTTPHandler(
 			Jar: nil,
 		},
 		dialer:          dialer,
+		resolver:        resolver,
 		nonProxyHandler: nonProxyHandler,
+		upstreamAuth:    upstreamAuth,
 	}
 	transport.Proxy = handler.lookupProxy
 	return handler
+}
+
+func (h *proxyHTTPHandler) resolveAddr(ctx context.Context, hostPort string) (string, error) {
+	if h.resolver == nil {
+		return hostPort, nil
+	}
+	return h.resolver.resolveHost(ctx, hostPort)
+}
+
+func (h *proxyHTTPHandler) dialTCP(ctx context.Context, hostPort string) (net.Conn, error) {
+	addr, err := h.resolveAddr(ctx, hostPort)
+	if err != nil {
+		return nil, err
+	}
+	return h.dialer.DialContext(ctx, "tcp", addr)
 }
 
 func (h *proxyHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -85,13 +156,20 @@ func (h *proxyHTTPHandler) lookupProxy(r *http.Request) (*url.URL, error) {
 	if proxy == pac.DirectProxy {
 		return nil, nil
 	}
+	scheme := "http"
+	if proxy.TLS {
+		scheme = "https"
+	}
 	proxyURL := &url.URL{
-		Host: fmt.Sprintf("%s:%d", proxy.Hostname, proxy.Port),
+		Scheme: scheme,
+		Host:   fmt.Sprintf("%s:%d", proxy.Hostname, proxy.Port),
 	}
 	if proxyAuth := r.Header.Get("Proxy-Authorization"); proxyAuth != "" {
 		if u, p, ok := parseBasicAuth(proxyAuth); ok {
 			proxyURL.User = url.UserPassword(u, p)
 		}
+	} else if h.upstreamAuth.shouldApply(proxy) {
+		proxyURL.User = url.UserPassword(h.upstreamAuth.user, h.upstreamAuth.pass)
 	}
 	return proxyURL, nil
 }
@@ -111,7 +189,7 @@ func (h *proxyHTTPHandler) doConnectProxy(w http.ResponseWriter, r *http.Request
 	}
 
 	if proxyURL == nil {
-		serverConn, err = h.dialer.Dial("tcp", r.URL.Host)
+		serverConn, err = h.dialTCP(r.Context(), r.URL.Host)
 		if err != nil {
 			log.Printf("HTTP Connect Proxy %q: %d %s", r.URL, http.StatusBadGateway, err)
 			http.Error(w, err.Error(), http.StatusBadGateway)
@@ -119,7 +197,20 @@ func (h *proxyHTTPHandler) doConnectProxy(w http.ResponseWriter, r *http.Request
 		}
 		defer serverConn.Close()
 	} else {
-		serverConn, err = h.dialer.Dial("tcp", proxyURL.Hostname()+":"+proxyURL.Port())
+		hostPort := proxyURL.Hostname() + ":" + proxyURL.Port()
+		resolved, rerr := h.resolveAddr(r.Context(), hostPort)
+		if rerr != nil {
+			log.Printf("HTTP Connect Proxy %q: %d %s", r.URL, http.StatusBadGateway, rerr)
+			http.Error(w, rerr.Error(), http.StatusBadGateway)
+			return
+		}
+		if proxyURL.Scheme == "https" {
+			serverConn, err = tls.DialWithDialer(h.dialer, "tcp", resolved, &tls.Config{
+				ServerName: proxyURL.Hostname(),
+			})
+		} else {
+			serverConn, err = h.dialer.Dial("tcp", resolved)
+		}
 		if err != nil {
 			log.Printf("HTTP Connect Proxy %q: %d %s", r.URL, http.StatusBadGateway, err)
 			http.Error(w, err.Error(), http.StatusBadGateway)
@@ -127,6 +218,9 @@ func (h *proxyHTTPHandler) doConnectProxy(w http.ResponseWriter, r *http.Request
 		}
 		defer serverConn.Close()
 		removeProxyHeaders(r)
+		if h.upstreamAuth.shouldApplyURL(proxyURL) && r.Header.Get("Proxy-Authorization") == "" {
+			r.Header.Set("Proxy-Authorization", h.upstreamAuth.Header())
+		}
 		//r.WriteProxy(serverConn)
 		r.Write(serverConn) // instead of WriteProxy as this will *hopefully* deal with CONNECT correctly.
 	}

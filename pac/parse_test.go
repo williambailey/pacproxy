@@ -12,11 +12,13 @@ var parsetests = []struct {
 	err     error
 }{
 	{"DIRECT", []Proxy{DirectProxy}, nil},
-	{"PROXY proxy.example.com:8080", []Proxy{Proxy{"proxy.example.com", 8080}}, nil},
-	{"PROXY proxy.example.com:8080;", []Proxy{Proxy{"proxy.example.com", 8080}}, nil},
-	{"PROXY proxy.example.com:8080;  ; ;;", []Proxy{Proxy{"proxy.example.com", 8080}}, nil},
-	{"PROXY proxy.example.com:8080; DIRECT", []Proxy{Proxy{"proxy.example.com", 8080}, DirectProxy}, nil},
-	{"PROXY proxy.example.com:8080; DIRECT; PROXY proxy.example.org:8888", []Proxy{Proxy{"proxy.example.com", 8080}, DirectProxy, Proxy{"proxy.example.org", 8888}}, nil},
+	{"PROXY proxy.example.com:8080", []Proxy{{Hostname: "proxy.example.com", Port: 8080}}, nil},
+	{"PROXY proxy.example.com:8080;", []Proxy{{Hostname: "proxy.example.com", Port: 8080}}, nil},
+	{"PROXY proxy.example.com:8080;  ; ;;", []Proxy{{Hostname: "proxy.example.com", Port: 8080}}, nil},
+	{"PROXY proxy.example.com:8080; DIRECT", []Proxy{{Hostname: "proxy.example.com", Port: 8080}, DirectProxy}, nil},
+	{"PROXY proxy.example.com:8080; DIRECT; PROXY proxy.example.org:8888", []Proxy{{Hostname: "proxy.example.com", Port: 8080}, DirectProxy, {Hostname: "proxy.example.org", Port: 8888}}, nil},
+	{"HTTPS squid.example.com:8443", []Proxy{{Hostname: "squid.example.com", Port: 8443, TLS: true}}, nil},
+	{"HTTPS squid1.example.com:8443; HTTPS squid2.example.com:8443", []Proxy{{Hostname: "squid1.example.com", Port: 8443, TLS: true}, {Hostname: "squid2.example.com", Port: 8443, TLS: true}}, nil},
 	{"FOO", []Proxy{}, errors.New("unsupported PAC command \"FOO\"")},
 	{"PROXY", []Proxy{}, errors.New("unable to parse proxy details from \"PROXY\"")},
 	{"PROXY http://foo.bar:8080", []Proxy{}, errors.New("unable to parse hostname and port from \"http://foo.bar:8080\"")},

@@ -38,7 +38,7 @@ func ParseFindProxyString(s string) (Proxies, error) {
 		switch strings.ToUpper(part[0]) {
 		case "DIRECT":
 			proxies = append(proxies, DirectProxy)
-		case "PROXY":
+		case "PROXY", "HTTPS":
 			if len(part) != 2 {
 				return Proxies{}, fmt.Errorf("unable to parse proxy details from %q", statement)
 			}
@@ -58,6 +58,7 @@ func ParseFindProxyString(s string) (Proxies, error) {
 			proxies = append(proxies, Proxy{
 				Hostname: proxyURL.Hostname(),
 				Port:     portInt,
+				TLS:      strings.ToUpper(part[0]) == "HTTPS",
 			})
 		default:
 			return Proxies{}, fmt.Errorf("unsupported PAC command %q", part[0])

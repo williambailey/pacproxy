@@ -227,7 +227,7 @@ func WeekdayRange(wd1, wd2, gmt string) bool {
 // (<day1>, <month1>, <year1>, <day2>, <month2>, <year2>, <gmt>)
 func DateRange(args []string) bool {
 	getMonth := func(name string) time.Month {
-		month, _ := month[name]
+		month := month[name]
 		return month
 	}
 	argc := len(args)
